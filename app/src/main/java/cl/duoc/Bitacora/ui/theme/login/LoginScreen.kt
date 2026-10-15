@@ -26,21 +26,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cl.duoc.Bitacora.viewmodel.LoginViewModel
 import cl.duoc.Bitacora.validation.LoginValidator
 
 
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
-    onIrARegistro: () -> Unit = {}
-) {
+    onIrARegistro: () -> Unit = {},
+    loginViewModel: LoginViewModel = viewModel()
+)  {
 
-    var correo by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
     var mostrarPassword by remember { mutableStateOf(false) }
 
-    var errorCorreo by remember { mutableStateOf("") }
-    var errorPassword by remember { mutableStateOf("") }
+    var correo = loginViewModel.correo
+    var password = loginViewModel.password
+
+    var errorCorreo = loginViewModel.errorCorreo
+    var errorPassword = loginViewModel.errorPassword
+
+    val errorLogin = loginViewModel.errorLogin
 
     Column(
         modifier = modifier
@@ -68,8 +74,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = correo,
             onValueChange = {
-                correo = it
-                errorCorreo = ""
+                loginViewModel.actualiazrCorreo(it)
             },
             label = { Text("Correo electrónico") },
             modifier = Modifier.fillMaxWidth(),
@@ -89,8 +94,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = {
-                password = it
-                errorPassword = ""
+                loginViewModel.actualizarPassword(it)
             },
             label = { Text("Contraseña") },
             modifier = Modifier.fillMaxWidth(),
@@ -130,16 +134,23 @@ fun LoginScreen(
 
         Button(
             onClick = {
-                errorCorreo = LoginValidator.validarCorreo(correo.trim())
-                errorPassword = LoginValidator.validarPassword(password)
+                if (loginViewModel.iniciarSesion()) {
+                    println("Inicio de sesion correcto")
 
-                if (errorCorreo.isEmpty() && errorPassword.isEmpty()) {
-                    println("Formulario válido")
+                    println("Usuario: ${loginViewModel.usuarioActual?.nombre}")
+                    println("Rol: ${loginViewModel.usuarioActual?.rol}")
                 }
+
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Iniciar sesión")
+        }
+        if (errorLogin.isNotEmpty()){
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(text = errorLogin,
+                color = MaterialTheme.colorScheme.error)
         }
 
         Spacer(modifier = Modifier.height(12.dp))
