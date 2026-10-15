@@ -30,7 +30,10 @@ import cl.duoc.Bitacora.validation.LoginValidator
 
 
 @Composable
-fun LoginScreen(modifier: Modifier = Modifier) {
+fun LoginScreen(
+    modifier: Modifier = Modifier,
+    onIrARegistro: () -> Unit = {}
+) {
 
     var correo by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -139,5 +142,14 @@ fun LoginScreen(modifier: Modifier = Modifier) {
             Text("Iniciar sesión")
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = onIrARegistro,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Registrar estudiante o profesor")
+        }
     }
+
 }
