@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import cl.duoc.Bitacora.navigation.BitacoraNavigation
 
 
 class MainActivity : ComponentActivity() {
@@ -43,7 +44,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize()
                     ) { innerPadding ->
 
-                        LoginScreen(
+                        BitacoraNavigation(
                             modifier = Modifier.padding(innerPadding),
                             onIrARegistro = {
                                 mostrarRegistro = true

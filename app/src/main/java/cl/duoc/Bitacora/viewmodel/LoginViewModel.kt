@@ -18,7 +18,7 @@ class LoginViewModel : ViewModel() {
     var errorPassword by mutableStateOf("")
         private set
 
-    private val usurioRepository = UsuarioRepository()
+    private val usuarioRepository = UsuarioRepository()
 
     var usuarioActual by mutableStateOf<Usuario?>(null)
         private set
@@ -35,20 +35,41 @@ class LoginViewModel : ViewModel() {
         errorPassword = ""
     }
 
+
     fun iniciarSesion(): Boolean {
 
         errorCorreo = LoginValidator.validarCorreo(correo.trim())
-
         errorPassword = LoginValidator.validarPassword(password)
 
-        if (errorCorreo.isNotEmpty() || errorPassword.isNotEmpty()){
+        if (errorCorreo.isNotEmpty() || errorPassword.isNotEmpty()) {
             usuarioActual = null
             errorLogin = ""
+            return false
+        }
+
+        val usuario = usuarioRepository.iniciarSesion(
+            correo.trim(),
+            password
+        )
+
+        if (usuario != null) {
+            usuarioActual = usuario
+            errorLogin = ""
             return true
-        }else{
+        } else {
             usuarioActual = null
             errorLogin = "Correo o contraseña incorrectos"
             return false
         }
     }
+
+    fun cerrarSesion() {
+        usuarioActual = null
+        correo = ""
+        password = ""
+        errorCorreo = ""
+        errorPassword = ""
+        errorLogin = ""
+    }
+
 }
