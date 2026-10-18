@@ -24,9 +24,10 @@ import cl.duoc.Bitacora.viewmodel.BitacoraViewModel
 @Composable
 fun MisBitacorasScreen(
     onVolver: () -> Unit,
+    onSeleccionarBitacora: (Int) -> Unit,
     modifier: Modifier = Modifier,
     bitacoraViewModel: BitacoraViewModel = viewModel()
-) {
+){
     LaunchedEffect(Unit) {
         bitacoraViewModel.cargarBitacoras("7° Básico A")
     }
@@ -66,6 +67,9 @@ fun MisBitacorasScreen(
                         cl.duoc.Bitacora.model.EstadoBitacora.PUBLICADA -> "Publicada"
                         cl.duoc.Bitacora.model.EstadoBitacora.CERRADA -> "Cerrada"
 
+                    },
+                    onVerBitacora = {
+                        onSeleccionarBitacora(bitacora.id)
                     }
                 )
             }
@@ -81,8 +85,9 @@ fun MisBitacorasScreen(
 fun BitacoraCard(
     asignatura: String,
     mes: String,
-    estado: String
-) {
+    estado: String,
+    onVerBitacora: () -> Unit
+)  {
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -100,9 +105,7 @@ fun BitacoraCard(
             Text("Estado: $estado")
 
             Button(
-                onClick = {
-                    // Próximamente: abrir bitácora
-                }
+                onClick = onVerBitacora
             ) {
                 Text("Ver bitácora")
             }

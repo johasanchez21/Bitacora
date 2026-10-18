@@ -25,10 +25,12 @@ import java.util.Calendar
 
 @Composable
 fun CrearEntradaScreen(
+    estudianteId: Int,
+    bitacoraId: Int,
     onVolver: () -> Unit,
     modifier: Modifier = Modifier,
     entradaViewModel: EntradaBitacoraViewModel = viewModel()
-) {
+)  {
 
     val context = LocalContext.current
     val calendario = remember { Calendar.getInstance() }
@@ -122,14 +124,38 @@ fun CrearEntradaScreen(
             minLines = 2
         )
 
+
         Button(
             onClick = {
-                entradaViewModel.validarFormulario()
+                entradaViewModel.guardarBorrador(
+                    estudianteId = estudianteId,
+                    bitacoraId = bitacoraId
+                )
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Validar entrada")
+            Text("Guardar borrador")
         }
+
+        Button(
+            onClick = {
+                entradaViewModel.enviarEntrada(
+                    estudianteId = estudianteId,
+                    bitacoraId = bitacoraId
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Enviar entrada")
+        }
+
+        if (entradaViewModel.mensajeResultado.isNotEmpty()) {
+            Text(
+                text = entradaViewModel.mensajeResultado,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
 
         TextButton(
             onClick = onVolver,

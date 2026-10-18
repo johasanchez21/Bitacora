@@ -23,25 +23,58 @@ import androidx.compose.runtime.setValue
 @Composable
 fun EstudianteScreen(
     nombre: String,
+    estudianteId: Int,
     onCerrarSesion: () -> Unit,
     modifier: Modifier = Modifier
-) {
+){
     var mostrarBitacoras by remember { mutableStateOf(false) }
     var mostrarCrearEntrada by remember { mutableStateOf(false) }
+
+    var bitacoraSeleccionadaId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
+    var mostrarHistorial by remember { mutableStateOf(false) }
 
     if (mostrarBitacoras) {
         MisBitacorasScreen(
             onVolver = {
                 mostrarBitacoras = false
             },
+            onSeleccionarBitacora = { bitacoraId ->
+                bitacoraSeleccionadaId = bitacoraId
+                mostrarBitacoras = false
+                mostrarCrearEntrada = true
+            },
             modifier = modifier
         )
         return
     }
     if (mostrarCrearEntrada) {
-        CrearEntradaScreen(
+
+        val idSeleccionado = bitacoraSeleccionadaId
+
+        if (idSeleccionado != null) {
+            CrearEntradaScreen(
+                estudianteId = estudianteId,
+                bitacoraId = idSeleccionado,
+                onVolver = {
+                    mostrarCrearEntrada = false
+                    mostrarBitacoras = true
+                },
+                modifier = modifier
+            )
+            return
+        }
+
+        mostrarCrearEntrada = false
+    }
+
+    if (mostrarHistorial) {
+        HistorialEntradasScreen(
+            estudianteId = estudianteId,
             onVolver = {
-                mostrarCrearEntrada = false
+                mostrarHistorial = false
             },
             modifier = modifier
         )
@@ -82,7 +115,8 @@ fun EstudianteScreen(
 
         Button(
             onClick = {
-                mostrarCrearEntrada = true
+                bitacoraSeleccionadaId = null
+                mostrarBitacoras = true
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -93,7 +127,7 @@ fun EstudianteScreen(
 
         Button(
             onClick = {
-                // Próximamente: historial
+                mostrarHistorial = true
             },
             modifier = Modifier.fillMaxWidth()
         ) {

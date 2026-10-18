@@ -22,10 +22,10 @@ fun BitacoraNavigation(
         RolUsuario.Estudiante -> {
             EstudianteScreen(
                 nombre = usuario.nombre,
+                estudianteId = usuario.id,
                 onCerrarSesion = {
                     loginViewModel.cerrarSesion()
-                },
-                modifier = modifier
+                }
             )
         }
 
