@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.viewmodel.EntradaBitacoraViewModel
 import java.util.Calendar
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun CrearEntradaScreen(
@@ -29,8 +30,9 @@ fun CrearEntradaScreen(
     bitacoraId: Int,
     onVolver: () -> Unit,
     modifier: Modifier = Modifier,
+    borradorId: Int? = null,
     entradaViewModel: EntradaBitacoraViewModel = viewModel()
-)  {
+) {
 
     val context = LocalContext.current
     val calendario = remember { Calendar.getInstance() }
@@ -47,6 +49,26 @@ fun CrearEntradaScreen(
         calendario.get(Calendar.MONTH),
         calendario.get(Calendar.DAY_OF_MONTH)
     )
+
+
+
+    LaunchedEffect(borradorId, estudianteId, bitacoraId) {
+
+        if (borradorId != null) {
+
+            entradaViewModel.cargarBorrador(
+                entradaId = borradorId,
+                estudianteId = estudianteId,
+                bitacoraId = bitacoraId
+            )
+
+        } else {
+
+            entradaViewModel.limpiarFormulario()
+
+        }
+    }
+
 
     Column(
         modifier = modifier

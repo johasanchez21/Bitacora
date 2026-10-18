@@ -42,6 +42,9 @@ class EntradaBitacoraViewModel(
     var errorDudas by mutableStateOf("")
         private set
 
+    var borradorId by mutableStateOf<Int?>(null)
+        private set
+
     private val dao = BitacoraDatabase
         .obtenerInstancia(application)
         .entradaBitacoraDao()
@@ -71,6 +74,46 @@ class EntradaBitacoraViewModel(
         errorDudas = ""
     }
 
+    fun cargarBorrador(
+        entradaId: Int,
+        estudianteId: Int,
+        bitacoraId: Int
+    ) {
+        viewModelScope.launch {
+            try {
+                val entrada = repository.obtenerEntradaPorId(entradaId)
+
+                if (
+                    entrada == null ||
+                    entrada.estudianteId != estudianteId ||
+                    entrada.bitacoraId != bitacoraId ||
+                    entrada.estado != EstadoEntrada.BORRADOR
+                ) {
+                    mensajeResultado = "No se encontró un borrador válido"
+                    return@launch
+                }
+
+                borradorId = entrada.id
+
+                fecha = entrada.fecha
+                actividad = entrada.actividad
+                aprendizaje = entrada.aprendizaje
+                dudas = entrada.dudas
+
+                errorFecha = ""
+                errorActividad = ""
+                errorAprendizaje = ""
+                errorDudas = ""
+
+                mensajeResultado = ""
+
+            } catch (e: Exception) {
+                mensajeResultado = "Error al cargar el borrador"
+            }
+        }
+    }
+
+
     fun validarFormulario(): Boolean {
 
         errorFecha =
@@ -91,18 +134,20 @@ class EntradaBitacoraViewModel(
                 errorDudas.isEmpty()
     }
 
+
     fun guardarBorrador(
         estudianteId: Int,
         bitacoraId: Int
     ): Boolean {
 
         if (estudianteId <= 0 || bitacoraId <= 0) {
-            mensajeResultado = "No se pudo identificar al estudiante o la bitácora"
+            mensajeResultado =
+                "No se pudo identificar al estudiante o la bitácora"
             return false
         }
 
         val entrada = EntradaBitacora(
-            id = 0,
+            id = borradorId ?: 0,
             bitacoraId = bitacoraId,
             estudianteId = estudianteId,
             fecha = fecha,
@@ -112,10 +157,30 @@ class EntradaBitacoraViewModel(
             estado = EstadoEntrada.BORRADOR
         )
 
+        mensajeResultado = "Guardando borrador..."
+
         viewModelScope.launch {
             try {
-                repository.guardarEntrada(entrada)
-                mensajeResultado = "Borrador guardado correctamente"
+                if (borradorId == null) {
+
+                    val nuevoId = repository.guardarEntrada(entrada)
+
+                    borradorId = nuevoId.toInt()
+
+                    mensajeResultado =
+                        "Borrador guardado correctamente"
+
+                } else {
+
+                    val actualizado = repository.actualizarBorrador(entrada)
+
+                    mensajeResultado = if (actualizado) {
+                        "Borrador actualizado correctamente"
+                    } else {
+                        "No se pudo actualizar el borrador"
+                    }
+                }
+
             } catch (e: Exception) {
                 mensajeResultado = "Error al guardar el borrador"
             }
@@ -123,6 +188,8 @@ class EntradaBitacoraViewModel(
 
         return true
     }
+
+
 
     fun enviarEntrada(
         estudianteId: Int,
@@ -135,12 +202,13 @@ class EntradaBitacoraViewModel(
         }
 
         if (estudianteId <= 0 || bitacoraId <= 0) {
-            mensajeResultado = "No se pudo identificar al estudiante o la bitácora"
+            mensajeResultado =
+                "No se pudo identificar al estudiante o la bitácora"
             return false
         }
 
         val entrada = EntradaBitacora(
-            id = 0,
+            id = borradorId ?: 0,
             bitacoraId = bitacoraId,
             estudianteId = estudianteId,
             fecha = fecha,
@@ -150,10 +218,29 @@ class EntradaBitacoraViewModel(
             estado = EstadoEntrada.ENVIADA
         )
 
+        mensajeResultado = "Enviando entrada..."
+
         viewModelScope.launch {
             try {
-                repository.guardarEntrada(entrada)
-                mensajeResultado = "Entrada enviada correctamente"
+
+                if (borradorId == null) {
+
+                    repository.guardarEntrada(entrada)
+
+                    mensajeResultado = "Entrada enviada correctamente"
+
+                } else {
+
+                    val enviada = repository.enviarBorrador(entrada)
+
+                    if (enviada) {
+                        borradorId = null
+                        mensajeResultado = "Entrada enviada correctamente"
+                    } else {
+                        mensajeResultado = "No se pudo enviar el borrador"
+                    }
+                }
+
             } catch (e: Exception) {
                 mensajeResultado = "Error al enviar la entrada"
             }
@@ -161,5 +248,23 @@ class EntradaBitacoraViewModel(
 
         return true
     }
+
+    fun limpiarFormulario() {
+
+        borradorId = null
+
+        fecha = ""
+        actividad = ""
+        aprendizaje = ""
+        dudas = ""
+
+        errorFecha = ""
+        errorActividad = ""
+        errorAprendizaje = ""
+        errorDudas = ""
+
+        mensajeResultado = ""
+    }
+
 }
 

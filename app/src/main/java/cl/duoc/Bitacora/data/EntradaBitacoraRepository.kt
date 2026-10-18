@@ -53,5 +53,56 @@ class EntradaBitacoraRepository(
 
         return true
     }
+
+    suspend fun actualizarBorrador(
+        entrada: EntradaBitacora
+    ): Boolean {
+
+        val entradaExistente = dao.obtenerEntradaPorId(entrada.id)
+            ?: return false
+
+        if (entradaExistente.estado != EstadoEntrada.BORRADOR.name) {
+            return false
+        }
+
+        if (entradaExistente.estudianteId != entrada.estudianteId ||
+            entradaExistente.bitacoraId != entrada.bitacoraId) {
+            return false
+        }
+
+        dao.actualizarEntrada(
+            entrada.toEntity()
+        )
+
+        return true
+    }
+
+    suspend fun enviarBorrador(
+        entrada: EntradaBitacora
+    ): Boolean {
+
+        val entradaExistente = dao.obtenerEntradaPorId(entrada.id)
+            ?: return false
+
+        if (entradaExistente.estado != EstadoEntrada.BORRADOR.name) {
+            return false
+        }
+
+        if (
+            entradaExistente.estudianteId != entrada.estudianteId ||
+            entradaExistente.bitacoraId != entrada.bitacoraId
+        ) {
+            return false
+        }
+
+        dao.actualizarEntrada(
+            entrada.copy(
+                estado = EstadoEntrada.ENVIADA
+            ).toEntity()
+        )
+
+        return true
+    }
+
 }
 

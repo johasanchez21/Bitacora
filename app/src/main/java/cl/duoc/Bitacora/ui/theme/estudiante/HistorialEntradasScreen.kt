@@ -25,6 +25,7 @@ import cl.duoc.Bitacora.model.EstadoEntrada
 fun HistorialEntradasScreen(
     estudianteId: Int,
     onVolver: () -> Unit,
+    onEditarBorrador: (Int, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
 
@@ -116,6 +117,21 @@ fun HistorialEntradasScreen(
                                 "Comentario del profesor: ${entrada.comentarioProfesor}"
                             )
                         }
+
+                        if (entrada.estado == EstadoEntrada.BORRADOR) {
+
+                            TextButton(
+                                onClick = {
+                                    onEditarBorrador(
+                                        entrada.id,
+                                        entrada.bitacoraId
+                                    )
+                                }
+                            ) {
+                                Text("Editar borrador")
+                            }
+                        }
+
                     }
                 }
             }

@@ -36,16 +36,24 @@ fun EstudianteScreen(
 
     var mostrarHistorial by remember { mutableStateOf(false) }
 
+    var borradorSeleccionadoId by remember {
+        mutableStateOf<Int?>(null)
+    }
+
     if (mostrarBitacoras) {
         MisBitacorasScreen(
             onVolver = {
                 mostrarBitacoras = false
             },
+
             onSeleccionarBitacora = { bitacoraId ->
+                borradorSeleccionadoId = null
                 bitacoraSeleccionadaId = bitacoraId
+
                 mostrarBitacoras = false
                 mostrarCrearEntrada = true
-            },
+            }
+            ,
             modifier = modifier
         )
         return
@@ -54,32 +62,56 @@ fun EstudianteScreen(
 
         val idSeleccionado = bitacoraSeleccionadaId
 
-        if (idSeleccionado != null) {
-            CrearEntradaScreen(
-                estudianteId = estudianteId,
-                bitacoraId = idSeleccionado,
-                onVolver = {
-                    mostrarCrearEntrada = false
-                    mostrarBitacoras = true
-                },
-                modifier = modifier
-            )
+
+        if (mostrarCrearEntrada) {
+            val idBitacora = bitacoraSeleccionadaId
+
+            if (idBitacora != null) {
+                CrearEntradaScreen(
+                    estudianteId = estudianteId,
+                    bitacoraId = idBitacora,
+                    borradorId = borradorSeleccionadoId,
+
+                    onVolver = {
+                        mostrarCrearEntrada = false
+                        borradorSeleccionadoId = null
+                    },
+
+                    modifier = modifier
+                )
+            }
+
             return
         }
+
 
         mostrarCrearEntrada = false
     }
 
+
+
     if (mostrarHistorial) {
         HistorialEntradasScreen(
             estudianteId = estudianteId,
+
             onVolver = {
                 mostrarHistorial = false
             },
+
+            onEditarBorrador = { entradaId, bitacoraId ->
+                borradorSeleccionadoId = entradaId
+                bitacoraSeleccionadaId = bitacoraId
+
+                mostrarHistorial = false
+                mostrarCrearEntrada = true
+            },
+
             modifier = modifier
         )
         return
     }
+
+
     Column(
         modifier = modifier
             .fillMaxSize()
