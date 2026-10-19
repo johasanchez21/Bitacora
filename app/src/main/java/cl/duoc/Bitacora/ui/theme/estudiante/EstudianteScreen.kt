@@ -40,6 +40,14 @@ fun EstudianteScreen(
         mutableStateOf<Int?>(null)
     }
 
+    var seleccionParaCrearEntrada by remember {
+        mutableStateOf(false)
+    }
+
+    var mostrarDetalleBitacora by remember {
+        mutableStateOf(false)
+    }
+
     if (mostrarBitacoras) {
         MisBitacorasScreen(
             onVolver = {
@@ -47,17 +55,45 @@ fun EstudianteScreen(
             },
 
             onSeleccionarBitacora = { bitacoraId ->
-                borradorSeleccionadoId = null
+
                 bitacoraSeleccionadaId = bitacoraId
 
-                mostrarBitacoras = false
-                mostrarCrearEntrada = true
-            }
-            ,
+                if (seleccionParaCrearEntrada) {
+
+                    borradorSeleccionadoId = null
+                    mostrarBitacoras = false
+                    mostrarCrearEntrada = true
+
+                } else {
+
+                    mostrarBitacoras = false
+                    mostrarDetalleBitacora = true
+
+                }
+            },
             modifier = modifier
         )
         return
     }
+
+    if (mostrarDetalleBitacora) {
+
+        val idBitacora = bitacoraSeleccionadaId
+
+        if (idBitacora != null) {
+            DetalleBitacoraScreen(
+                bitacoraId = idBitacora,
+                onVolver = {
+                    mostrarDetalleBitacora = false
+                    mostrarBitacoras = true
+                },
+                modifier = modifier
+            )
+        }
+
+        return
+    }
+
     if (mostrarCrearEntrada) {
 
         val idSeleccionado = bitacoraSeleccionadaId
@@ -136,6 +172,7 @@ fun EstudianteScreen(
 
         Button(
             onClick = {
+                seleccionParaCrearEntrada = false
                 mostrarBitacoras = true
             },
             modifier = Modifier.fillMaxWidth()
@@ -147,7 +184,9 @@ fun EstudianteScreen(
 
         Button(
             onClick = {
+                seleccionParaCrearEntrada = true
                 bitacoraSeleccionadaId = null
+                borradorSeleccionadoId = null
                 mostrarBitacoras = true
             },
             modifier = Modifier.fillMaxWidth()
