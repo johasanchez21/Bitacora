@@ -3,7 +3,6 @@ package cl.duoc.Bitacora.viewmodel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
 import cl.duoc.Bitacora.data.EntradaBitacoraRepository
 import cl.duoc.Bitacora.model.EntradaBitacora
 import cl.duoc.Bitacora.model.EstadoEntrada
@@ -12,6 +11,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cl.duoc.Bitacora.data.local.BitacoraDatabase
+import kotlinx.coroutines.launch
+import android.net.Uri
+import cl.duoc.Bitacora.data.FotoRepository
 import kotlinx.coroutines.launch
 
 class EntradaBitacoraViewModel(
@@ -54,10 +56,21 @@ class EntradaBitacoraViewModel(
     var mensajeResultado by mutableStateOf("")
         private set
 
+    var fotoUri by mutableStateOf<String?>(null)
+        private set
+
+    var guardandoFoto by mutableStateOf(false)
+        private set
+
+    var errorFoto by mutableStateOf<String?>(null)
+        private set
+
     fun actualizarFecha(nuevaFecha: String) {
         fecha = nuevaFecha
         errorFecha = ""
     }
+
+    private val fotoRepository = FotoRepository(application)
 
     fun actualizarActividad(nuevaActividad: String) {
         actividad = nuevaActividad
@@ -107,6 +120,8 @@ class EntradaBitacoraViewModel(
 
                 mensajeResultado = ""
 
+                fotoUri = entrada.fotoUri
+
             } catch (e: Exception) {
                 mensajeResultado = "Error al cargar el borrador"
             }
@@ -154,7 +169,8 @@ class EntradaBitacoraViewModel(
             actividad = actividad,
             aprendizaje = aprendizaje,
             dudas = dudas,
-            estado = EstadoEntrada.BORRADOR
+            estado = EstadoEntrada.BORRADOR,
+            fotoUri = fotoUri
         )
 
         mensajeResultado = "Guardando borrador..."
@@ -215,7 +231,8 @@ class EntradaBitacoraViewModel(
             actividad = actividad,
             aprendizaje = aprendizaje,
             dudas = dudas,
-            estado = EstadoEntrada.ENVIADA
+            estado = EstadoEntrada.ENVIADA,
+            fotoUri = fotoUri
         )
 
         mensajeResultado = "Enviando entrada..."
@@ -264,6 +281,37 @@ class EntradaBitacoraViewModel(
         errorDudas = ""
 
         mensajeResultado = ""
+
+        fotoUri = null
+        errorFoto = null
+    }
+
+    fun guardarFotografia(uriSeleccionada: Uri) {
+
+        if (guardandoFoto) return
+
+        viewModelScope.launch {
+
+            guardandoFoto = true
+            errorFoto = null
+
+            try {
+
+                val rutaGuardada =
+                    fotoRepository.guardarFoto(uriSeleccionada)
+
+                if (rutaGuardada != null) {
+                    fotoUri = rutaGuardada
+                } else {
+                    errorFoto = "No se pudo guardar la fotografía"
+                }
+
+            } catch (e: Exception) {
+                errorFoto = "Error al guardar la fotografía"
+            } finally {
+                guardandoFoto = false
+            }
+        }
     }
 
 }

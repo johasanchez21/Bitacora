@@ -1,6 +1,7 @@
 package cl.duoc.Bitacora.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.model.RolUsuario
@@ -15,31 +16,39 @@ fun BitacoraNavigation(
     loginViewModel: LoginViewModel = viewModel(),
     onIrARegistro: () -> Unit = {}
 ) {
+
     val usuario = loginViewModel.usuarioActual
 
     when (usuario?.rol) {
 
         RolUsuario.Estudiante -> {
-            EstudianteScreen(
-                nombre = usuario.nombre,
-                estudianteId = usuario.id,
-                onCerrarSesion = {
-                    loginViewModel.cerrarSesion()
-                }
-            )
+
+            key(usuario.id, usuario.rol) {
+                EstudianteScreen(
+                    nombre = usuario.nombre,
+                    estudianteId = usuario.id,
+                    onCerrarSesion = {
+                        loginViewModel.cerrarSesion()
+                    }
+                )
+            }
         }
 
         RolUsuario.Profesor -> {
-            ProfesorScreen(
-                nombre = usuario.nombre,
-                onCerrarSesion = {
-                    loginViewModel.cerrarSesion()
-                },
-                modifier = modifier
-            )
+
+            key(usuario.id, usuario.rol) {
+                ProfesorScreen(
+                    nombre = usuario.nombre,
+                    onCerrarSesion = {
+                        loginViewModel.cerrarSesion()
+                    },
+                    modifier = modifier
+                )
+            }
         }
 
         null -> {
+
             LoginScreen(
                 modifier = modifier,
                 loginViewModel = loginViewModel,
@@ -48,4 +57,3 @@ fun BitacoraNavigation(
         }
     }
 }
-

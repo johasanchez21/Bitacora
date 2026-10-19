@@ -9,6 +9,7 @@ data class EntradaBitacora(
     val aprendizaje: String,
     val dudas: String,
     val estado: EstadoEntrada,
-    val comentarioProfesor: String = ""
+    val comentarioProfesor: String = "",
+    val fotoUri: String? = null
 )
 

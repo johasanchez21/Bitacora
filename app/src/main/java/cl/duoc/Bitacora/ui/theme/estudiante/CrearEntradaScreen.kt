@@ -23,6 +23,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.viewmodel.EntradaBitacoraViewModel
 import java.util.Calendar
 import androidx.compose.runtime.LaunchedEffect
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 
 @Composable
 fun CrearEntradaScreen(
@@ -50,7 +58,14 @@ fun CrearEntradaScreen(
         calendario.get(Calendar.DAY_OF_MONTH)
     )
 
+    val selectorFoto = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
 
+        if (uri != null) {
+            entradaViewModel.guardarFotografia(uri)
+        }
+    }
 
     LaunchedEffect(borradorId, estudianteId, bitacoraId) {
 
@@ -146,6 +161,49 @@ fun CrearEntradaScreen(
             minLines = 2
         )
 
+        Button(
+            onClick = {
+                selectorFoto.launch(
+                    PickVisualMediaRequest(
+                        ActivityResultContracts.PickVisualMedia.ImageOnly
+                    )
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Seleccionar fotografía")
+        }
+
+
+        if (entradaViewModel.guardandoFoto) {
+            Text("Guardando fotografía...")
+        }
+
+
+        entradaViewModel.fotoUri?.let { rutaFoto ->
+
+            Text("Fotografía adjunta:")
+
+            AsyncImage(
+                model = Uri.parse(rutaFoto),
+                contentDescription = "Fotografía adjunta a la entrada",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentScale = ContentScale.Fit
+            )
+
+            Text("Fotografía guardada correctamente")
+        }
+
+
+        entradaViewModel.errorFoto?.let { error ->
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
 
         Button(
             onClick = {
@@ -154,8 +212,9 @@ fun CrearEntradaScreen(
                     bitacoraId = bitacoraId
                 )
             },
-            modifier = Modifier.fillMaxWidth()
-        ) {
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !entradaViewModel.guardandoFoto,
+            ) {
             Text("Guardar borrador")
         }
 
@@ -166,7 +225,8 @@ fun CrearEntradaScreen(
                     bitacoraId = bitacoraId
                 )
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !entradaViewModel.guardandoFoto,
         ) {
             Text("Enviar entrada")
         }

@@ -14,7 +14,8 @@ fun EntradaBitacora.toEntity(): EntradaBitacoraEntity {
         aprendizaje = aprendizaje,
         dudas = dudas,
         estado = estado.name,
-        comentarioProfesor = comentarioProfesor
+        comentarioProfesor = comentarioProfesor,
+        fotoUri = fotoUri
     )
 }
 
@@ -28,7 +29,8 @@ fun EntradaBitacoraEntity.toModel(): EntradaBitacora {
         aprendizaje = aprendizaje,
         dudas = dudas,
         estado = EstadoEntrada.valueOf(estado),
-        comentarioProfesor = comentarioProfesor
+        comentarioProfesor = comentarioProfesor,
+        fotoUri = fotoUri
     )
 }
 

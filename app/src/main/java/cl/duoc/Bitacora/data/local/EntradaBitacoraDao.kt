@@ -34,5 +34,16 @@ interface EntradaBitacoraDao {
     suspend fun actualizarEntrada(
         entrada: EntradaBitacoraEntity
     )
+
+
+    @Query(
+        """
+    SELECT * FROM entradas_bitacora
+    WHERE estado = 'ENVIADA'
+    ORDER BY id DESC
+    """
+    )
+    fun obtenerEntradasEnviadas(): Flow<List<EntradaBitacoraEntity>>
+
 }
 

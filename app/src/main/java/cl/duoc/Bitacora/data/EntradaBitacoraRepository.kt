@@ -104,5 +104,43 @@ class EntradaBitacoraRepository(
         return true
     }
 
+
+    fun obtenerEntradasEnviadas(): Flow<List<EntradaBitacora>> {
+
+        return dao.obtenerEntradasEnviadas()
+            .map { lista ->
+                lista.map { entidad ->
+                    entidad.toModel()
+                }
+            }
+    }
+
+
+    suspend fun revisarEntrada(
+        entradaId: Int,
+        comentarioProfesor: String
+    ): Boolean {
+
+        if (comentarioProfesor.isBlank()) {
+            return false
+        }
+
+        val entradaExistente = dao.obtenerEntradaPorId(entradaId)
+            ?: return false
+
+        if (entradaExistente.estado != EstadoEntrada.ENVIADA.name) {
+            return false
+        }
+
+        dao.actualizarEntrada(
+            entradaExistente.copy(
+                comentarioProfesor = comentarioProfesor.trim(),
+                estado = EstadoEntrada.REVISADA.name
+            )
+        )
+
+        return true
+    }
+
 }
 

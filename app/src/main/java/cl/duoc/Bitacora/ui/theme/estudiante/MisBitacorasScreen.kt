@@ -105,7 +105,8 @@ fun BitacoraCard(
             Text("Estado: $estado")
 
             Button(
-                onClick = onVerBitacora
+                onClick = onVerBitacora,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Ver bitácora")
             }

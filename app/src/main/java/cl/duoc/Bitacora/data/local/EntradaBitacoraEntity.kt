@@ -23,6 +23,8 @@ data class EntradaBitacoraEntity(
 
     val estado: String,
 
-    val comentarioProfesor: String = ""
+    val comentarioProfesor: String = "",
+
+    val fotoUri: String? = null
 )
 
