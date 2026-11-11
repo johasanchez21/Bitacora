@@ -15,139 +15,80 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cl.duoc.Bitacora.viewmodel.EstudianteDestino
+import cl.duoc.Bitacora.viewmodel.EstudianteViewModel
 
 @Composable
 fun EstudianteScreen(
     nombre: String,
     estudianteId: Int,
     onCerrarSesion: () -> Unit,
-    modifier: Modifier = Modifier
-){
-    var mostrarBitacoras by remember { mutableStateOf(false) }
-    var mostrarCrearEntrada by remember { mutableStateOf(false) }
+    modifier: Modifier = Modifier,
+    viewModel: EstudianteViewModel = viewModel()
+) {
+    when (val destino = viewModel.destinoActual) {
+        is EstudianteDestino.MenuPrincipal -> {
+            EstudianteMenuContent(
+                nombre = nombre,
+                onMisBitacorasClick = { viewModel.abrirMisBitacoras() },
+                onCrearEntradaClick = { viewModel.abrirSeleccionBitacoraParaCrearEntrada() },
+                onMiHistorialClick = { viewModel.abrirHistorial() },
+                onCerrarSesion = onCerrarSesion,
+                modifier = modifier
+            )
+        }
 
-    var bitacoraSeleccionadaId by remember {
-        mutableStateOf<Int?>(null)
-    }
-
-    var mostrarHistorial by remember { mutableStateOf(false) }
-
-    var borradorSeleccionadoId by remember {
-        mutableStateOf<Int?>(null)
-    }
-
-    var seleccionParaCrearEntrada by remember {
-        mutableStateOf(false)
-    }
-
-    var mostrarDetalleBitacora by remember {
-        mutableStateOf(false)
-    }
-
-    if (mostrarBitacoras) {
-        MisBitacorasScreen(
-            onVolver = {
-                mostrarBitacoras = false
-            },
-
-            onSeleccionarBitacora = { bitacoraId ->
-
-                bitacoraSeleccionadaId = bitacoraId
-
-                if (seleccionParaCrearEntrada) {
-
-                    borradorSeleccionadoId = null
-                    mostrarBitacoras = false
-                    mostrarCrearEntrada = true
-
-                } else {
-
-                    mostrarBitacoras = false
-                    mostrarDetalleBitacora = true
-
-                }
-            },
-            modifier = modifier
-        )
-        return
-    }
-
-    if (mostrarDetalleBitacora) {
-
-        val idBitacora = bitacoraSeleccionadaId
-
-        if (idBitacora != null) {
-            DetalleBitacoraScreen(
-                bitacoraId = idBitacora,
-                onVolver = {
-                    mostrarDetalleBitacora = false
-                    mostrarBitacoras = true
+        is EstudianteDestino.MisBitacoras -> {
+            MisBitacorasScreen(
+                onVolver = { viewModel.volverAMenu() },
+                onSeleccionarBitacora = { bitacoraId ->
+                    viewModel.seleccionarBitacora(bitacoraId)
                 },
                 modifier = modifier
             )
         }
 
-        return
-    }
-
-    if (mostrarCrearEntrada) {
-
-        val idSeleccionado = bitacoraSeleccionadaId
-
-
-        if (mostrarCrearEntrada) {
-            val idBitacora = bitacoraSeleccionadaId
-
-            if (idBitacora != null) {
-                CrearEntradaScreen(
-                    estudianteId = estudianteId,
-                    bitacoraId = idBitacora,
-                    borradorId = borradorSeleccionadoId,
-
-                    onVolver = {
-                        mostrarCrearEntrada = false
-                        borradorSeleccionadoId = null
-                    },
-
-                    modifier = modifier
-                )
-            }
-
-            return
+        is EstudianteDestino.DetalleBitacora -> {
+            DetalleBitacoraScreen(
+                bitacoraId = destino.bitacoraId,
+                onVolver = { viewModel.volverAMisBitacoras() },
+                modifier = modifier
+            )
         }
 
+        is EstudianteDestino.CrearEntrada -> {
+            CrearEntradaScreen(
+                estudianteId = estudianteId,
+                bitacoraId = destino.bitacoraId,
+                borradorId = destino.borradorId,
+                onVolver = { viewModel.volverAMenu() },
+                modifier = modifier
+            )
+        }
 
-        mostrarCrearEntrada = false
+        is EstudianteDestino.Historial -> {
+            HistorialEntradasScreen(
+                estudianteId = estudianteId,
+                onVolver = { viewModel.volverAMenu() },
+                onEditarBorrador = { entradaId, bitacoraId ->
+                    viewModel.editarBorrador(entradaId = entradaId, bitacoraId = bitacoraId)
+                },
+                modifier = modifier
+            )
+        }
     }
+}
 
-
-
-    if (mostrarHistorial) {
-        HistorialEntradasScreen(
-            estudianteId = estudianteId,
-
-            onVolver = {
-                mostrarHistorial = false
-            },
-
-            onEditarBorrador = { entradaId, bitacoraId ->
-                borradorSeleccionadoId = entradaId
-                bitacoraSeleccionadaId = bitacoraId
-
-                mostrarHistorial = false
-                mostrarCrearEntrada = true
-            },
-
-            modifier = modifier
-        )
-        return
-    }
-
-
+@Composable
+fun EstudianteMenuContent(
+    nombre: String,
+    onMisBitacorasClick: () -> Unit,
+    onCrearEntradaClick: () -> Unit,
+    onMiHistorialClick: () -> Unit,
+    onCerrarSesion: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -155,7 +96,6 @@ fun EstudianteScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-
         Text(
             text = "Bienvenido, $nombre",
             style = MaterialTheme.typography.headlineSmall
@@ -171,10 +111,7 @@ fun EstudianteScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = {
-                seleccionParaCrearEntrada = false
-                mostrarBitacoras = true
-            },
+            onClick = onMisBitacorasClick,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Mis bitácoras")
@@ -183,12 +120,7 @@ fun EstudianteScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = {
-                seleccionParaCrearEntrada = true
-                bitacoraSeleccionadaId = null
-                borradorSeleccionadoId = null
-                mostrarBitacoras = true
-            },
+            onClick = onCrearEntradaClick,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Crear entrada")
@@ -197,9 +129,7 @@ fun EstudianteScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = {
-                mostrarHistorial = true
-            },
+            onClick = onMiHistorialClick,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Mi historial")
