@@ -1,4 +1,4 @@
-package cl.duoc.Bitacora.data
+package cl.duoc.Bitacora.data.repository
 
 import android.content.Context
 import android.net.Uri

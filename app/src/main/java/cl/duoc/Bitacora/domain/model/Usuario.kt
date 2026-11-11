@@ -1,6 +1,6 @@
-package cl.duoc.Bitacora.model
+package cl.duoc.Bitacora.domain.model
 
-data class Usuario (
+data class Usuario(
     val id: Int,
     val nombre: String,
     val correo: String,

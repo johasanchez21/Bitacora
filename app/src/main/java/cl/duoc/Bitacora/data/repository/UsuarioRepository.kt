@@ -1,7 +1,7 @@
-package cl.duoc.Bitacora.data
+package cl.duoc.Bitacora.data.repository
 
-import cl.duoc.Bitacora.model.RolUsuario
-import cl.duoc.Bitacora.model.Usuario
+import cl.duoc.Bitacora.domain.model.RolUsuario
+import cl.duoc.Bitacora.domain.model.Usuario
 
 class UsuarioRepository {
 
@@ -22,7 +22,7 @@ class UsuarioRepository {
         )
     )
 
-    fun iniciarSesion(correo: String, password: String): Usuario?{
+    fun iniciarSesion(correo: String, password: String): Usuario? {
         return usuarios.find {
             it.correo.equals(correo, ignoreCase = true) &&
                     it.password == password

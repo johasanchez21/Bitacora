@@ -1,4 +1,4 @@
-package cl.duoc.Bitacora.ui.theme.login
+package cl.duoc.Bitacora.ui.screens.login
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,28 +26,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cl.duoc.Bitacora.viewmodel.LoginViewModel
-import cl.duoc.Bitacora.validation.LoginValidator
-
+import cl.duoc.Bitacora.ui.viewmodel.LoginViewModel
 
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
     onIrARegistro: () -> Unit = {},
     loginViewModel: LoginViewModel = viewModel()
-)  {
+) {
 
     var mostrarPassword by remember { mutableStateOf(false) }
 
-    var correo = loginViewModel.correo
-    var password = loginViewModel.password
+    val correo = loginViewModel.correo
+    val password = loginViewModel.password
 
-    var errorCorreo = loginViewModel.errorCorreo
-    var errorPassword = loginViewModel.errorPassword
+    val errorCorreo = loginViewModel.errorCorreo
+    val errorPassword = loginViewModel.errorPassword
 
     val errorLogin = loginViewModel.errorLogin
 
@@ -70,7 +68,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-
         OutlinedTextField(
             value = correo,
             onValueChange = {
@@ -87,9 +84,7 @@ fun LoginScreen(
             }
         )
 
-
         Spacer(modifier = Modifier.height(16.dp))
-
 
         OutlinedTextField(
             value = password,
@@ -128,9 +123,7 @@ fun LoginScreen(
             }
         )
 
-
         Spacer(modifier = Modifier.height(24.dp))
-
 
         Button(
             onClick = {
@@ -140,17 +133,19 @@ fun LoginScreen(
                     println("Usuario: ${loginViewModel.usuarioActual?.nombre}")
                     println("Rol: ${loginViewModel.usuarioActual?.rol}")
                 }
-
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Iniciar sesión")
         }
+
         if (errorLogin.isNotEmpty()){
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(text = errorLogin,
-                color = MaterialTheme.colorScheme.error)
+            Text(
+                text = errorLogin,
+                color = MaterialTheme.colorScheme.error
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -162,5 +157,4 @@ fun LoginScreen(
             Text("Registrar estudiante o profesor")
         }
     }
-
 }

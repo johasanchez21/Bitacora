@@ -1,8 +1,10 @@
-package cl.duoc.Bitacora.data
+package cl.duoc.Bitacora.data.repository
 
-import cl.duoc.Bitacora.data.local.EntradaBitacoraDao
-import cl.duoc.Bitacora.model.EntradaBitacora
-import cl.duoc.Bitacora.model.EstadoEntrada
+import cl.duoc.Bitacora.data.local.dao.EntradaBitacoraDao
+import cl.duoc.Bitacora.data.mapper.toEntity
+import cl.duoc.Bitacora.data.mapper.toModel
+import cl.duoc.Bitacora.domain.model.EntradaBitacora
+import cl.duoc.Bitacora.domain.model.EstadoEntrada
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -143,4 +145,3 @@ class EntradaBitacoraRepository(
     }
 
 }
-

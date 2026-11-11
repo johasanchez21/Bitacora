@@ -8,18 +8,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import cl.duoc.Bitacora.ui.theme.BitacoraTheme
-import cl.duoc.Bitacora.ui.theme.login.LoginScreen
-import cl.duoc.Bitacora.ui.theme.registros.RegistroScreen
-
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import cl.duoc.Bitacora.navigation.BitacoraNavigation
-
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import cl.duoc.Bitacora.ui.navigation.BitacoraNavigation
+import cl.duoc.Bitacora.ui.screens.login.LoginScreen
+import cl.duoc.Bitacora.ui.screens.registro.RegistroScreen
+import cl.duoc.Bitacora.ui.theme.BitacoraTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

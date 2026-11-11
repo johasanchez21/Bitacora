@@ -6,6 +6,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import cl.duoc.Bitacora.data.local.dao.BitacoraDao
+import cl.duoc.Bitacora.data.local.dao.EntradaBitacoraDao
+import cl.duoc.Bitacora.data.local.entity.BitacoraEntity
+import cl.duoc.Bitacora.data.local.entity.EntradaBitacoraEntity
 
 @Database(
     entities = [

@@ -1,8 +1,8 @@
-package cl.duoc.Bitacora.data
+package cl.duoc.Bitacora.data.mapper
 
-import cl.duoc.Bitacora.data.local.EntradaBitacoraEntity
-import cl.duoc.Bitacora.model.EntradaBitacora
-import cl.duoc.Bitacora.model.EstadoEntrada
+import cl.duoc.Bitacora.data.local.entity.EntradaBitacoraEntity
+import cl.duoc.Bitacora.domain.model.EntradaBitacora
+import cl.duoc.Bitacora.domain.model.EstadoEntrada
 
 fun EntradaBitacora.toEntity(): EntradaBitacoraEntity {
     return EntradaBitacoraEntity(
@@ -33,4 +33,3 @@ fun EntradaBitacoraEntity.toModel(): EntradaBitacora {
         fotoUri = fotoUri
     )
 }
-

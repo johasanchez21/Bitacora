@@ -1,4 +1,4 @@
-package cl.duoc.Bitacora.model
+package cl.duoc.Bitacora.domain.model
 
 enum class EstadoEntrada {
     BORRADOR,

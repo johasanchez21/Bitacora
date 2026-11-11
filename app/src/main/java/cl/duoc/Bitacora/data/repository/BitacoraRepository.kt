@@ -1,8 +1,10 @@
-package cl.duoc.Bitacora.data
+package cl.duoc.Bitacora.data.repository
 
-import cl.duoc.Bitacora.data.local.BitacoraDao
-import cl.duoc.Bitacora.model.Bitacora
-import cl.duoc.Bitacora.model.EstadoBitacora
+import cl.duoc.Bitacora.data.local.dao.BitacoraDao
+import cl.duoc.Bitacora.data.mapper.toEntity
+import cl.duoc.Bitacora.data.mapper.toModel
+import cl.duoc.Bitacora.domain.model.Bitacora
+import cl.duoc.Bitacora.domain.model.EstadoBitacora
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

@@ -1,12 +1,12 @@
-package cl.duoc.Bitacora.data
+package cl.duoc.Bitacora.data.repository
 
 import android.content.Context
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
+import cl.duoc.Bitacora.domain.model.Bitacora
+import cl.duoc.Bitacora.domain.model.EntradaBitacora
 import java.io.File
 import java.util.UUID
-import cl.duoc.Bitacora.model.Bitacora
-import cl.duoc.Bitacora.model.EntradaBitacora
 
 class PdfRepository(
     private val context: Context
@@ -130,11 +130,8 @@ class PdfRepository(
         ) {
             pintura.textSize = tamano
 
-            val canvas = pagina?.canvas ?: return
-
             val anchoDisponible = anchoPagina - margen * 2
 
-            // Ajustar texto largo a varias líneas
             val palabras = texto.split(Regex("\\s+"))
             var linea = ""
 

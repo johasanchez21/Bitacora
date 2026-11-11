@@ -1,4 +1,4 @@
-package cl.duoc.Bitacora.data.local
+package cl.duoc.Bitacora.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -27,4 +27,3 @@ data class EntradaBitacoraEntity(
 
     val fotoUri: String? = null
 )
-
