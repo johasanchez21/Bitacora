@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kover)
 }
 
 android {
@@ -59,4 +60,20 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
     ksp("androidx.room:room-compiler:2.8.4")
+}
+kover {
+    reports {
+        filters {
+            includes {
+                classes(
+                    "cl.duoc.consumiendoapi.ui.form.ClienteValidator*",
+                    "cl.duoc.consumiendoapi.ui.form.ClienteFormViewModel*",
+                    "cl.duoc.consumiendoapi.ui.clientes.ClientesViewModel*",
+                    "cl.duoc.consumiendoapi.data.repository.ClientesRepository*",
+                    "cl.duoc.consumiendoapi.data.repository.ApiErrorMapper*","cl.duoc.consumiendoapi.data.usecase.ClientesUseCases*",
+                    "cl.duoc.consumiendoapi.domain.usecase.CalcularEstadisticasUseCase*"
+                )
+            }
+        }
+    }
 }
