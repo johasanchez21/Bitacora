@@ -10,7 +10,9 @@ fun Bitacora.toEntity(): BitacoraEntity {
         asignatura = asignatura,
         mes = mes,
         anio = anio,
+        cursoId = cursoId,
         curso = curso,
+        profesorId = profesorId,
         estado = estado.name
     )
 }
@@ -21,7 +23,13 @@ fun BitacoraEntity.toModel(): Bitacora {
         asignatura = asignatura,
         mes = mes,
         anio = anio,
+        cursoId = cursoId,
         curso = curso,
-        estado = EstadoBitacora.valueOf(estado)
+        profesorId = profesorId,
+        estado = try {
+            EstadoBitacora.valueOf(estado)
+        } catch (e: Exception) {
+            EstadoBitacora.BORRADOR
+        }
     )
 }

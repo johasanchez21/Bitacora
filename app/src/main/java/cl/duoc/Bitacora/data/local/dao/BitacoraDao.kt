@@ -3,6 +3,7 @@ package cl.duoc.Bitacora.data.local.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import cl.duoc.Bitacora.data.local.entity.BitacoraEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -10,71 +11,23 @@ import kotlinx.coroutines.flow.Flow
 interface BitacoraDao {
 
     @Insert
-    suspend fun insertarBitacora(
-        bitacora: BitacoraEntity
-    ): Long
+    suspend fun insertarBitacora(bitacora: BitacoraEntity): Long
 
-    @Query(
-        """
-        SELECT * FROM bitacoras
-        ORDER BY id DESC
-        """
-    )
+    @Query("SELECT * FROM bitacoras ORDER BY id DESC")
     fun obtenerTodasLasBitacoras(): Flow<List<BitacoraEntity>>
 
-    @Query(
-        """
-        SELECT * FROM bitacoras
-        WHERE curso = :curso
-        AND estado = 'PUBLICADA'
-        ORDER BY id DESC
-        """
-    )
-    fun obtenerBitacorasPublicadas(
-        curso: String
-    ): Flow<List<BitacoraEntity>>
+    @Query("SELECT * FROM bitacoras WHERE curso = :curso AND estado = 'PUBLICADA' ORDER BY id DESC")
+    fun obtenerBitacorasPublicadas(curso: String): Flow<List<BitacoraEntity>>
 
-    @Query(
-        """
-        SELECT * FROM bitacoras
-        WHERE id = :id
-        LIMIT 1
-        """
-    )
-    suspend fun obtenerBitacoraPorId(
-        id: Int
-    ): BitacoraEntity?
+    @Query("SELECT * FROM bitacoras WHERE cursoId = :cursoId ORDER BY id DESC")
+    fun obtenerBitacorasPorCursoId(cursoId: Int): Flow<List<BitacoraEntity>>
 
-    @Query(
-        """
-        UPDATE bitacoras
-        SET estado = :nuevoEstado
-        WHERE id = :id
-        """
-    )
-    suspend fun actualizarEstado(
-        id: Int,
-        nuevoEstado: String
-    ): Int
+    @Query("SELECT * FROM bitacoras WHERE id = :id LIMIT 1")
+    suspend fun obtenerBitacoraPorId(id: Int): BitacoraEntity?
 
-    @Query(
-        """
-    UPDATE bitacoras
-    SET id = :nuevoId
-    WHERE id = :idActual
-    """
-    )
-    suspend fun cambiarIdBitacora(
-        idActual: Int,
-        nuevoId: Int
-    ): Int
+    @Query("UPDATE bitacoras SET estado = :nuevoEstado WHERE id = :id")
+    suspend fun actualizarEstado(id: Int, nuevoEstado: String): Int
 
-    @Query(
-        """
-    SELECT COUNT(*) FROM bitacoras
-    WHERE id = :id
-    """
-    )
-    suspend fun existeBitacoraConId(id: Int): Int
-
+    @Update
+    suspend fun actualizarBitacora(bitacora: BitacoraEntity)
 }

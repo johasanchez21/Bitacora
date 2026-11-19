@@ -1,59 +1,69 @@
 package cl.duoc.Bitacora.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.domain.model.RolUsuario
+import cl.duoc.Bitacora.domain.model.Usuario
 import cl.duoc.Bitacora.ui.screens.estudiante.EstudianteScreen
 import cl.duoc.Bitacora.ui.screens.login.LoginScreen
 import cl.duoc.Bitacora.ui.screens.profesor.ProfesorScreen
-import cl.duoc.Bitacora.ui.viewmodel.LoginViewModel
+
+enum class DestinoNavegacion {
+    LOGIN,
+    ESTUDIANTE,
+    PROFESOR
+}
 
 @Composable
 fun BitacoraNavigation(
     modifier: Modifier = Modifier,
-    loginViewModel: LoginViewModel = viewModel(),
     onIrARegistro: () -> Unit = {}
 ) {
+    var destinoActual by remember { mutableStateOf(DestinoNavegacion.LOGIN) }
+    var usuarioLogueado by remember { mutableStateOf<Usuario?>(null) }
 
-    val usuario = loginViewModel.usuarioActual
-
-    when (usuario?.rol) {
-
-        RolUsuario.Estudiante -> {
-
-            key(usuario.id, usuario.rol) {
-                EstudianteScreen(
-                    nombre = usuario.nombre,
-                    estudianteId = usuario.id,
-                    onCerrarSesion = {
-                        loginViewModel.cerrarSesion()
+    when (destinoActual) {
+        DestinoNavegacion.LOGIN -> {
+            LoginScreen(
+                modifier = modifier,
+                onIrARegistro = onIrARegistro,
+                onLoginExitoso = { usuario ->
+                    usuarioLogueado = usuario
+                    destinoActual = if (usuario.rol == RolUsuario.Profesor) {
+                        DestinoNavegacion.PROFESOR
+                    } else {
+                        DestinoNavegacion.ESTUDIANTE
                     }
-                )
-            }
+                }
+            )
         }
-
-        RolUsuario.Profesor -> {
-
-            key(usuario.id, usuario.rol) {
-                ProfesorScreen(
-                    nombre = usuario.nombre,
+        DestinoNavegacion.ESTUDIANTE -> {
+            usuarioLogueado?.let { usuario ->
+                EstudianteScreen(
+                    usuarioEstudiante = usuario,
                     onCerrarSesion = {
-                        loginViewModel.cerrarSesion()
+                        usuarioLogueado = null
+                        destinoActual = DestinoNavegacion.LOGIN
                     },
                     modifier = modifier
                 )
             }
         }
-
-        null -> {
-
-            LoginScreen(
-                modifier = modifier,
-                loginViewModel = loginViewModel,
-                onIrARegistro = onIrARegistro
-            )
+        DestinoNavegacion.PROFESOR -> {
+            usuarioLogueado?.let { usuario ->
+                ProfesorScreen(
+                    usuarioProfesor = usuario,
+                    onCerrarSesion = {
+                        usuarioLogueado = null
+                        destinoActual = DestinoNavegacion.LOGIN
+                    },
+                    modifier = modifier
+                )
+            }
         }
     }
 }
