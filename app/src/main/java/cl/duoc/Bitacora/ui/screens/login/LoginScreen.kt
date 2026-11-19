@@ -27,12 +27,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cl.duoc.Bitacora.domain.model.Usuario
 import cl.duoc.Bitacora.ui.viewmodel.LoginViewModel
 
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
     onIrARegistro: () -> Unit = {},
+    onLoginExitoso: (Usuario) -> Unit = {},
     loginViewModel: LoginViewModel = viewModel()
 ) {
 
@@ -45,6 +47,7 @@ fun LoginScreen(
     val errorPassword = loginViewModel.errorPassword
 
     val errorLogin = loginViewModel.errorLogin
+    val mensajeExito = loginViewModel.mensajeExito
 
     Column(
         modifier = modifier
@@ -127,16 +130,25 @@ fun LoginScreen(
 
         Button(
             onClick = {
-                if (loginViewModel.iniciarSesion()) {
-                    println("Inicio de sesion correcto")
-
-                    println("Usuario: ${loginViewModel.usuarioActual?.nombre}")
-                    println("Rol: ${loginViewModel.usuarioActual?.rol}")
-                }
+                loginViewModel.iniciarSesion(
+                    onExito = { usuario ->
+                        onLoginExitoso(usuario)
+                    }
+                )
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Iniciar sesión")
+        }
+
+        if (mensajeExito.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = mensajeExito,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
 
         if (errorLogin.isNotEmpty()){
