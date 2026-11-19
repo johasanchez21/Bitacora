@@ -33,7 +33,9 @@ class EstudianteViewModel(
     private val _misEntradas = MutableStateFlow<List<EntradaBitacora>>(emptyList())
     val misEntradas: StateFlow<List<EntradaBitacora>> = _misEntradas.asStateFlow()
 
-    // Formulario Crear Entrada
+    // Formulario Crear / Editar Entrada
+    var borradorIdSeleccionado by mutableStateOf<Int?>(null)
+        private set
     var fechaInput by mutableStateOf("2025-03-30")
         private set
     var actividadInput by mutableStateOf("")
@@ -59,8 +61,6 @@ class EstudianteViewModel(
             }
             _cursosEstudiante.value = listaCursos
 
-            // Obtener bitácoras publicadas para sus cursos
-            val listaBitacoras = mutableListOf<Bitacora>()
             bitacoraRepository.obtenerTodasLasBitacorasRoom().collect { todas ->
                 val filtradas = todas.filter { b -> estudiante.cursoIds.contains(b.cursoId) || estudiante.cursoIds.isEmpty() }
                 _bitacorasDisponibles.value = filtradas
@@ -80,6 +80,58 @@ class EstudianteViewModel(
     fun actualizarDudas(v: String) { dudasInput = v; mensajeError = ""; mensajeExito = "" }
     fun seleccionarBitacora(b: Bitacora) { bitacoraSeleccionada = b; mensajeError = ""; mensajeExito = "" }
 
+    fun iniciarNuevaEntrada(bitacora: Bitacora) {
+        limpiarFormulario()
+        bitacoraSeleccionada = bitacora
+    }
+
+    fun cargarBorradorParaEditar(entrada: EntradaBitacora) {
+        borradorIdSeleccionado = entrada.id
+        fechaInput = entrada.fecha
+        actividadInput = entrada.actividad
+        aprendizajeInput = entrada.aprendizaje
+        dudasInput = entrada.dudas
+        bitacoraSeleccionada = _bitacorasDisponibles.value.find { it.id == entrada.bitacoraId }
+        mensajeError = ""
+        mensajeExito = "Borrador cargado para edición"
+    }
+
+    fun guardarBorrador(estudiante: Usuario) {
+        val bitacora = bitacoraSeleccionada
+        if (bitacora == null) {
+            mensajeError = "Debe seleccionar una bitácora asignada."
+            return
+        }
+
+        val nuevaEntrada = EntradaBitacora(
+            id = borradorIdSeleccionado ?: 0,
+            bitacoraId = bitacora.id,
+            estudianteId = estudiante.id,
+            fecha = fechaInput,
+            actividad = actividadInput,
+            aprendizaje = aprendizajeInput,
+            dudas = dudasInput,
+            estado = EstadoEntrada.BORRADOR
+        )
+
+        viewModelScope.launch {
+            val exito = if (borradorIdSeleccionado != null) {
+                entradaRepository.actualizarBorrador(nuevaEntrada)
+            } else {
+                val id = entradaRepository.guardarEntrada(nuevaEntrada)
+                borradorIdSeleccionado = id.toInt()
+                id > 0
+            }
+
+            if (exito) {
+                mensajeExito = "Borrador guardado correctamente."
+                mensajeError = ""
+            } else {
+                mensajeError = "No se pudo guardar el borrador."
+            }
+        }
+    }
+
     fun guardarYEnviarEntrada(estudiante: Usuario) {
         val bitacora = bitacoraSeleccionada
         if (bitacora == null) {
@@ -93,6 +145,7 @@ class EstudianteViewModel(
         }
 
         val nuevaEntrada = EntradaBitacora(
+            id = borradorIdSeleccionado ?: 0,
             bitacoraId = bitacora.id,
             estudianteId = estudiante.id,
             fecha = fechaInput,
@@ -103,16 +156,28 @@ class EstudianteViewModel(
         )
 
         viewModelScope.launch {
-            val id = entradaRepository.guardarEntrada(nuevaEntrada)
-            if (id > 0) {
-                mensajeExito = "Entrada enviada al profesor correctamente."
-                actividadInput = ""
-                aprendizajeInput = ""
-                dudasInput = ""
-                mensajeError = ""
+            val exito = if (borradorIdSeleccionado != null) {
+                entradaRepository.enviarBorrador(nuevaEntrada)
             } else {
-                mensajeError = "Error al guardar entrada"
+                val id = entradaRepository.guardarEntrada(nuevaEntrada)
+                id > 0
+            }
+
+            if (exito) {
+                mensajeExito = "Entrada enviada al profesor correctamente."
+                limpiarFormulario()
+            } else {
+                mensajeError = "Error al enviar la entrada."
             }
         }
+    }
+
+    fun limpiarFormulario() {
+        borradorIdSeleccionado = null
+        actividadInput = ""
+        aprendizajeInput = ""
+        dudasInput = ""
+        mensajeError = ""
+        mensajeExito = ""
     }
 }

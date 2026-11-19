@@ -84,6 +84,30 @@ class EntradaBitacoraRepository(
         }
     }
 
+    suspend fun actualizarBorrador(
+        entrada: EntradaBitacora
+    ): Boolean {
+        if (dao != null) {
+            val entradaExistente = dao.obtenerEntradaPorId(entrada.id) ?: return false
+            if (entradaExistente.estado != EstadoEntrada.BORRADOR.name) return false
+            if (entradaExistente.estudianteId != entrada.estudianteId ||
+                entradaExistente.bitacoraId != entrada.bitacoraId) {
+                return false
+            }
+            dao.actualizarEntrada(entrada.toEntity())
+            return true
+        } else {
+            synchronized(entradasMemoria) {
+                val idx = entradasMemoria.indexOfFirst { it.id == entrada.id }
+                if (idx != -1 && entradasMemoria[idx].estado == EstadoEntrada.BORRADOR) {
+                    entradasMemoria[idx] = entrada
+                    return true
+                }
+            }
+            return false
+        }
+    }
+
     suspend fun enviarBorrador(
         entrada: EntradaBitacora
     ): Boolean {
