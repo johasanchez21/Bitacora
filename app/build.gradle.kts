@@ -7,9 +7,7 @@ plugins {
 
 android {
     namespace = "cl.duoc.Bitacora"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "cl.duoc.Bitacora"
@@ -47,6 +45,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.google.code.gson:gson:2.11.0")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.room:room-runtime:2.8.4")
@@ -61,6 +63,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     ksp("androidx.room:room-compiler:2.8.4")
 }
+
 kover {
     reports {
         filters {
@@ -70,7 +73,8 @@ kover {
                     "cl.duoc.consumiendoapi.ui.form.ClienteFormViewModel*",
                     "cl.duoc.consumiendoapi.ui.clientes.ClientesViewModel*",
                     "cl.duoc.consumiendoapi.data.repository.ClientesRepository*",
-                    "cl.duoc.consumiendoapi.data.repository.ApiErrorMapper*","cl.duoc.consumiendoapi.data.usecase.ClientesUseCases*",
+                    "cl.duoc.consumiendoapi.data.repository.ApiErrorMapper*",
+                    "cl.duoc.consumiendoapi.data.usecase.ClientesUseCases*",
                     "cl.duoc.consumiendoapi.domain.usecase.CalcularEstadisticasUseCase*"
                 )
             }

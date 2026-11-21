@@ -1,15 +1,17 @@
 package cl.duoc.Bitacora.data.repository
 
 import cl.duoc.Bitacora.data.local.dao.CursoDao
-import cl.duoc.Bitacora.data.mapper.toEntity
-import cl.duoc.Bitacora.data.mapper.toModel
+import cl.duoc.Bitacora.data.remote.BitacoraApiService
+import cl.duoc.Bitacora.data.remote.RetrofitClient
+import cl.duoc.Bitacora.data.remote.mapper.toDomain
+import cl.duoc.Bitacora.data.remote.mapper.toDto
 import cl.duoc.Bitacora.domain.model.Curso
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
 
 class CursoRepository(
-    private val cursoDao: CursoDao? = null
+    private val cursoDao: CursoDao? = null,
+    private val apiService: BitacoraApiService = RetrofitClient.apiService
 ) {
 
     companion object {
@@ -28,9 +30,6 @@ class CursoRepository(
         }
     }
 
-    /**
-     * Regla de Negocio 1: Los cursos deben estar registrados y solo pueden ser máximo dos por año.
-     */
     suspend fun registrarCurso(curso: Curso): Result<Long> {
         if (curso.nombre.isBlank() || curso.codigo.isBlank()) {
             return Result.failure(
@@ -38,12 +37,19 @@ class CursoRepository(
             )
         }
 
-        val cantidadEnAnio = if (cursoDao != null) {
-            cursoDao.contarCursosPorAnio(curso.anio)
-        } else {
-            synchronized(cursosMemoria) {
-                cursosMemoria.count { it.anio == curso.anio }
+        try {
+            val response = apiService.registrarCurso(curso.toDto())
+            if (response.isSuccessful && response.body() != null) {
+                val cursoGuardado = response.body()!!.toDomain()
+                synchronized(cursosMemoria) { cursosMemoria.add(cursoGuardado) }
+                return Result.success(cursoGuardado.id.toLong())
             }
+        } catch (e: Exception) {
+            // Fallback red
+        }
+
+        val cantidadEnAnio = synchronized(cursosMemoria) {
+            cursosMemoria.count { it.anio == curso.anio }
         }
 
         if (cantidadEnAnio >= 2) {
@@ -52,50 +58,47 @@ class CursoRepository(
             )
         }
 
-        if (cursoDao != null) {
-            val id = cursoDao.insertarCurso(curso.toEntity())
-            val cursoConId = curso.copy(id = id.toInt())
-            synchronized(cursosMemoria) {
-                cursosMemoria.add(cursoConId)
-            }
-            return Result.success(id)
-        } else {
-            synchronized(cursosMemoria) {
-                val nuevoId = (cursosMemoria.maxOfOrNull { it.id } ?: 0) + 1
-                val cursoGuardado = curso.copy(id = nuevoId)
-                cursosMemoria.add(cursoGuardado)
-                return Result.success(nuevoId.toLong())
-            }
+        synchronized(cursosMemoria) {
+            val nuevoId = (cursosMemoria.maxOfOrNull { it.id } ?: 0) + 1
+            val cursoGuardado = curso.copy(id = nuevoId)
+            cursosMemoria.add(cursoGuardado)
+            return Result.success(nuevoId.toLong())
         }
     }
 
-    fun obtenerTodosLosCursos(): Flow<List<Curso>> {
-        return if (cursoDao != null) {
-            cursoDao.obtenerTodosLosCursos().map { lista ->
-                lista.map { it.toModel() }
+    fun obtenerTodosLosCursos(): Flow<List<Curso>> = flow {
+        try {
+            val response = apiService.obtenerCursos()
+            if (response.isSuccessful && response.body() != null) {
+                val lista = response.body()!!.map { it.toDomain() }
+                synchronized(cursosMemoria) {
+                    cursosMemoria.clear()
+                    cursosMemoria.addAll(lista)
+                }
+                emit(lista)
+                return@flow
             }
-        } else {
-            flowOf(cursosMemoria)
+        } catch (e: Exception) {
+            // Fallback
         }
+        emit(synchronized(cursosMemoria) { cursosMemoria.toList() })
     }
 
     suspend fun obtenerCursosPorAnio(anio: Int): List<Curso> {
-        return if (cursoDao != null) {
-            cursoDao.obtenerCursosPorAnio(anio).map { it.toModel() }
-        } else {
-            synchronized(cursosMemoria) {
-                cursosMemoria.filter { it.anio == anio }
+        try {
+            val response = apiService.obtenerCursosPorAnio(anio)
+            if (response.isSuccessful && response.body() != null) {
+                return response.body()!!.map { it.toDomain() }
             }
+        } catch (e: Exception) {
+            // Fallback
         }
+        return synchronized(cursosMemoria) { cursosMemoria.filter { it.anio == anio } }
     }
 
     suspend fun obtenerCursoPorId(id: Int): Curso? {
-        return if (cursoDao != null) {
-            cursoDao.obtenerCursoPorId(id)?.toModel()
-        } else {
-            synchronized(cursosMemoria) {
-                cursosMemoria.find { it.id == id }
-            }
+        return synchronized(cursosMemoria) {
+            cursosMemoria.find { it.id == id }
         }
     }
 }

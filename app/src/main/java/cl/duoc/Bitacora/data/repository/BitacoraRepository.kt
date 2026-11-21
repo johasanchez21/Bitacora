@@ -3,17 +3,21 @@ package cl.duoc.Bitacora.data.repository
 import cl.duoc.Bitacora.data.local.dao.BitacoraDao
 import cl.duoc.Bitacora.data.mapper.toEntity
 import cl.duoc.Bitacora.data.mapper.toModel
+import cl.duoc.Bitacora.data.remote.BitacoraApiService
+import cl.duoc.Bitacora.data.remote.RetrofitClient
+import cl.duoc.Bitacora.data.remote.mapper.toDomain
+import cl.duoc.Bitacora.data.remote.mapper.toDto
 import cl.duoc.Bitacora.domain.model.Bitacora
 import cl.duoc.Bitacora.domain.model.Curso
 import cl.duoc.Bitacora.domain.model.EstadoBitacora
 import cl.duoc.Bitacora.domain.model.RolUsuario
 import cl.duoc.Bitacora.domain.model.Usuario
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
 
 class BitacoraRepository(
-    private val bitacoraDao: BitacoraDao? = null
+    private val bitacoraDao: BitacoraDao? = null,
+    private val apiService: BitacoraApiService = RetrofitClient.apiService
 ) {
 
     companion object {
@@ -40,9 +44,6 @@ class BitacoraRepository(
         }
     }
 
-    /**
-     * Regla de Negocio 3: Las bitácoras deben ser asignadas a un curso en particular por el profesor.
-     */
     suspend fun asignarBitacoraPorProfesor(
         profesor: Usuario,
         bitacora: Bitacora,
@@ -66,97 +67,128 @@ class BitacoraRepository(
             profesorId = profesor.id
         )
 
-        if (bitacoraDao != null) {
-            val id = bitacoraDao.insertarBitacora(bitacoraAAsignar.toEntity())
-            val bitacoraConId = bitacoraAAsignar.copy(id = id.toInt())
-            synchronized(bitacorasMemoria) {
-                bitacorasMemoria.add(bitacoraConId)
-            }
-            return Result.success(id)
-        } else {
-            synchronized(bitacorasMemoria) {
-                val nuevoId = (bitacorasMemoria.maxOfOrNull { it.id } ?: 0) + 1
-                val bitacoraGuardada = bitacoraAAsignar.copy(id = nuevoId)
-                bitacorasMemoria.add(bitacoraGuardada)
-                return Result.success(nuevoId.toLong())
-            }
-        }
-    }
-
-    suspend fun guardarBitacora(
-        bitacora: Bitacora
-    ): Long {
-        if (bitacoraDao != null) {
-            return bitacoraDao.insertarBitacora(bitacora.toEntity())
-        } else {
-            synchronized(bitacorasMemoria) {
-                val nuevoId = (bitacorasMemoria.maxOfOrNull { it.id } ?: 0) + 1
-                val b = bitacora.copy(id = nuevoId)
-                bitacorasMemoria.add(b)
-                return nuevoId.toLong()
-            }
-        }
-    }
-
-    fun obtenerTodasLasBitacorasRoom(): Flow<List<Bitacora>> {
-        return if (bitacoraDao != null) {
-            bitacoraDao.obtenerTodasLasBitacoras()
-                .map { entidades -> entidades.map { it.toModel() } }
-        } else {
-            flowOf(bitacorasMemoria)
-        }
-    }
-
-    fun obtenerBitacorasPublicadasRoom(
-        curso: String
-    ): Flow<List<Bitacora>> {
-        return if (bitacoraDao != null) {
-            bitacoraDao.obtenerBitacorasPublicadas(curso)
-                .map { entidades -> entidades.map { it.toModel() } }
-        } else {
-            flowOf(bitacorasMemoria.filter { it.curso == curso && it.estado == EstadoBitacora.PUBLICADA })
-        }
-    }
-
-    fun obtenerBitacorasPorCursoId(
-        cursoId: Int
-    ): Flow<List<Bitacora>> {
-        return if (bitacoraDao != null) {
-            bitacoraDao.obtenerBitacorasPorCursoId(cursoId)
-                .map { entidades -> entidades.map { it.toModel() } }
-        } else {
-            flowOf(bitacorasMemoria.filter { it.cursoId == cursoId })
-        }
-    }
-
-    suspend fun obtenerBitacoraPorIdRoom(
-        id: Int
-    ): Bitacora? {
-        return if (bitacoraDao != null) {
-            bitacoraDao.obtenerBitacoraPorId(id)?.toModel()
-        } else {
-            synchronized(bitacorasMemoria) {
-                bitacorasMemoria.find { it.id == id }
-            }
-        }
-    }
-
-    suspend fun publicarBitacora(
-        id: Int
-    ): Boolean {
-        if (bitacoraDao != null) {
-            val bitacora = bitacoraDao.obtenerBitacoraPorId(id) ?: return false
-            if (bitacora.estado != EstadoBitacora.BORRADOR.name) return false
-            return bitacoraDao.actualizarEstado(id = id, nuevoEstado = EstadoBitacora.PUBLICADA.name) > 0
-        } else {
-            synchronized(bitacorasMemoria) {
-                val idx = bitacorasMemoria.indexOfFirst { it.id == id }
-                if (idx != -1 && bitacorasMemoria[idx].estado == EstadoBitacora.BORRADOR) {
-                    bitacorasMemoria[idx] = bitacorasMemoria[idx].copy(estado = EstadoBitacora.PUBLICADA)
-                    return true
+        try {
+            val response = apiService.crearBitacora(bitacoraAAsignar.toDto())
+            if (response.isSuccessful && response.body() != null) {
+                val b = response.body()!!.toDomain()
+                synchronized(bitacorasMemoria) { bitacorasMemoria.add(b) }
+                if (bitacoraDao != null) {
+                    bitacoraDao.insertarBitacora(b.toEntity())
                 }
+                return Result.success(b.id.toLong())
             }
-            return false
+        } catch (e: Exception) {
+            // Fallback
         }
+
+        val nuevoId = (bitacorasMemoria.maxOfOrNull { it.id } ?: 0) + 1
+        val bitacoraGuardada = bitacoraAAsignar.copy(id = nuevoId)
+        synchronized(bitacorasMemoria) { bitacorasMemoria.add(bitacoraGuardada) }
+        if (bitacoraDao != null) {
+            bitacoraDao.insertarBitacora(bitacoraGuardada.toEntity())
+        }
+        return Result.success(nuevoId.toLong())
+    }
+
+    suspend fun guardarBitacora(bitacora: Bitacora): Long {
+        try {
+            val response = apiService.crearBitacora(bitacora.toDto())
+            if (response.isSuccessful && response.body() != null) {
+                val b = response.body()!!.toDomain()
+                synchronized(bitacorasMemoria) { bitacorasMemoria.add(b) }
+                if (bitacoraDao != null) {
+                    bitacoraDao.insertarBitacora(b.toEntity())
+                }
+                return b.id.toLong()
+            }
+        } catch (e: Exception) {
+            // Fallback
+        }
+
+        val nuevoId = (bitacorasMemoria.maxOfOrNull { it.id } ?: 0) + 1
+        val b = bitacora.copy(id = nuevoId)
+        synchronized(bitacorasMemoria) { bitacorasMemoria.add(b) }
+        if (bitacoraDao != null) {
+            bitacoraDao.insertarBitacora(b.toEntity())
+        }
+        return nuevoId.toLong()
+    }
+
+    suspend fun obtenerBitacoraPorIdRoom(id: Int): Bitacora? {
+        try {
+            val response = apiService.obtenerTodasLasBitacoras()
+            if (response.isSuccessful && response.body() != null) {
+                val encontrada = response.body()!!.map { it.toDomain() }.find { it.id == id }
+                if (encontrada != null) return encontrada
+            }
+        } catch (e: Exception) {
+            // Fallback
+        }
+        if (bitacoraDao != null) {
+            val entity = bitacoraDao.obtenerBitacoraPorId(id)
+            if (entity != null) return entity.toModel()
+        }
+        return synchronized(bitacorasMemoria) { bitacorasMemoria.find { it.id == id } }
+    }
+
+    fun obtenerTodasLasBitacorasRoom(): Flow<List<Bitacora>> = flow {
+        try {
+            val response = apiService.obtenerTodasLasBitacoras()
+            if (response.isSuccessful && response.body() != null) {
+                val lista = response.body()!!.map { it.toDomain() }
+                synchronized(bitacorasMemoria) {
+                    bitacorasMemoria.clear()
+                    bitacorasMemoria.addAll(lista)
+                }
+                emit(lista)
+                return@flow
+            }
+        } catch (e: Exception) {
+            // Fallback
+        }
+        if (bitacoraDao != null) {
+            bitacoraDao.obtenerTodasLasBitacoras().collect { entidades ->
+                emit(entidades.map { it.toModel() })
+            }
+        } else {
+            emit(synchronized(bitacorasMemoria) { bitacorasMemoria.toList() })
+        }
+    }
+
+    fun obtenerBitacorasPublicadasRoom(curso: String): Flow<List<Bitacora>> = flow {
+        try {
+            val response = apiService.obtenerTodasLasBitacoras()
+            if (response.isSuccessful && response.body() != null) {
+                val filtradas = response.body()!!
+                    .map { it.toDomain() }
+                    .filter { it.curso == curso && it.estado == EstadoBitacora.PUBLICADA }
+                emit(filtradas)
+                return@flow
+            }
+        } catch (e: Exception) {
+            // Fallback
+        }
+        emit(synchronized(bitacorasMemoria) {
+            bitacorasMemoria.filter { it.curso == curso && it.estado == EstadoBitacora.PUBLICADA }
+        })
+    }
+
+    suspend fun publicarBitacora(id: Int): Boolean {
+        try {
+            val response = apiService.publicarBitacora(id.toLong())
+            if (response.isSuccessful && response.body() != null) {
+                return true
+            }
+        } catch (e: Exception) {
+            // Fallback
+        }
+        synchronized(bitacorasMemoria) {
+            val idx = bitacorasMemoria.indexOfFirst { it.id == id }
+            if (idx != -1 && bitacorasMemoria[idx].estado == EstadoBitacora.BORRADOR) {
+                bitacorasMemoria[idx] = bitacorasMemoria[idx].copy(estado = EstadoBitacora.PUBLICADA)
+                return true
+            }
+        }
+        return false
     }
 }
