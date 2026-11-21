@@ -13,11 +13,24 @@ import cl.duoc.Bitacora.data.repository.FotoRepository
 import cl.duoc.Bitacora.domain.model.EntradaBitacora
 import cl.duoc.Bitacora.domain.model.EstadoEntrada
 import cl.duoc.Bitacora.domain.validation.EntradaBitacoraValidator
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+sealed interface EntradaUiState {
+    object Idle : EntradaUiState
+    object Loading : EntradaUiState
+    data class Success(val mensaje: String) : EntradaUiState
+    data class Error(val mensaje: String) : EntradaUiState
+}
 
 class EntradaBitacoraViewModel(
     application: Application
 ) : AndroidViewModel(application) {
+
+    private val _uiState = MutableStateFlow<EntradaUiState>(EntradaUiState.Idle)
+    val uiState: StateFlow<EntradaUiState> = _uiState.asStateFlow()
 
     var fecha by mutableStateOf("")
         private set
@@ -101,6 +114,7 @@ class EntradaBitacoraViewModel(
                     entrada.estado != EstadoEntrada.BORRADOR
                 ) {
                     mensajeResultado = "No se encontró un borrador válido"
+                    _uiState.value = EntradaUiState.Error(mensajeResultado)
                     return@launch
                 }
 
@@ -117,27 +131,21 @@ class EntradaBitacoraViewModel(
                 errorDudas = ""
 
                 mensajeResultado = ""
-
                 fotoUri = entrada.fotoUri
+                _uiState.value = EntradaUiState.Idle
 
             } catch (e: Exception) {
                 mensajeResultado = "Error al cargar el borrador"
+                _uiState.value = EntradaUiState.Error(mensajeResultado)
             }
         }
     }
 
     fun validarFormulario(): Boolean {
-        errorFecha =
-            EntradaBitacoraValidator.validarFecha(fecha)
-
-        errorActividad =
-            EntradaBitacoraValidator.validarActividad(actividad)
-
-        errorAprendizaje =
-            EntradaBitacoraValidator.validarAprendizaje(aprendizaje)
-
-        errorDudas =
-            EntradaBitacoraValidator.validarDudas(dudas)
+        errorFecha = EntradaBitacoraValidator.validarFecha(fecha)
+        errorActividad = EntradaBitacoraValidator.validarActividad(actividad)
+        errorAprendizaje = EntradaBitacoraValidator.validarAprendizaje(aprendizaje)
+        errorDudas = EntradaBitacoraValidator.validarDudas(dudas)
 
         return errorFecha.isEmpty() &&
                 errorActividad.isEmpty() &&
@@ -150,8 +158,8 @@ class EntradaBitacoraViewModel(
         bitacoraId: Int
     ): Boolean {
         if (estudianteId <= 0 || bitacoraId <= 0) {
-            mensajeResultado =
-                "No se pudo identificar al estudiante o la bitácora"
+            mensajeResultado = "No se pudo identificar al estudiante o la bitácora"
+            _uiState.value = EntradaUiState.Error(mensajeResultado)
             return false
         }
 
@@ -168,24 +176,28 @@ class EntradaBitacoraViewModel(
         )
 
         mensajeResultado = "Guardando borrador..."
+        _uiState.value = EntradaUiState.Loading
 
         viewModelScope.launch {
             try {
                 if (borradorId == null) {
                     val nuevoId = repository.guardarEntrada(entrada)
                     borradorId = nuevoId.toInt()
-                    mensajeResultado =
-                        "Borrador guardado correctamente"
+                    mensajeResultado = "Borrador guardado correctamente"
+                    _uiState.value = EntradaUiState.Success(mensajeResultado)
                 } else {
                     val actualizado = repository.actualizarBorrador(entrada)
-                    mensajeResultado = if (actualizado) {
-                        "Borrador actualizado correctamente"
+                    if (actualizado) {
+                        mensajeResultado = "Borrador actualizado correctamente"
+                        _uiState.value = EntradaUiState.Success(mensajeResultado)
                     } else {
-                        "No se pudo actualizar el borrador"
+                        mensajeResultado = "No se pudo actualizar el borrador"
+                        _uiState.value = EntradaUiState.Error(mensajeResultado)
                     }
                 }
             } catch (e: Exception) {
                 mensajeResultado = "Error al guardar el borrador"
+                _uiState.value = EntradaUiState.Error(mensajeResultado)
             }
         }
 
@@ -198,12 +210,13 @@ class EntradaBitacoraViewModel(
     ): Boolean {
         if (!validarFormulario()) {
             mensajeResultado = "Debes corregir los errores del formulario"
+            _uiState.value = EntradaUiState.Error(mensajeResultado)
             return false
         }
 
         if (estudianteId <= 0 || bitacoraId <= 0) {
-            mensajeResultado =
-                "No se pudo identificar al estudiante o la bitácora"
+            mensajeResultado = "No se pudo identificar al estudiante o la bitácora"
+            _uiState.value = EntradaUiState.Error(mensajeResultado)
             return false
         }
 
@@ -220,23 +233,28 @@ class EntradaBitacoraViewModel(
         )
 
         mensajeResultado = "Enviando entrada..."
+        _uiState.value = EntradaUiState.Loading
 
         viewModelScope.launch {
             try {
                 if (borradorId == null) {
                     repository.guardarEntrada(entrada)
                     mensajeResultado = "Entrada enviada correctamente"
+                    _uiState.value = EntradaUiState.Success(mensajeResultado)
                 } else {
                     val enviada = repository.enviarBorrador(entrada)
                     if (enviada) {
                         borradorId = null
                         mensajeResultado = "Entrada enviada correctamente"
+                        _uiState.value = EntradaUiState.Success(mensajeResultado)
                     } else {
                         mensajeResultado = "No se pudo enviar el borrador"
+                        _uiState.value = EntradaUiState.Error(mensajeResultado)
                     }
                 }
             } catch (e: Exception) {
                 mensajeResultado = "Error al enviar la entrada"
+                _uiState.value = EntradaUiState.Error(mensajeResultado)
             }
         }
 
@@ -257,9 +275,9 @@ class EntradaBitacoraViewModel(
         errorDudas = ""
 
         mensajeResultado = ""
-
         fotoUri = null
         errorFoto = null
+        _uiState.value = EntradaUiState.Idle
     }
 
     fun guardarFotografia(uriSeleccionada: Uri) {
@@ -270,9 +288,7 @@ class EntradaBitacoraViewModel(
             errorFoto = null
 
             try {
-                val rutaGuardada =
-                    fotoRepository.guardarFoto(uriSeleccionada)
-
+                val rutaGuardada = fotoRepository.guardarFoto(uriSeleccionada)
                 if (rutaGuardada != null) {
                     fotoUri = rutaGuardada
                 } else {

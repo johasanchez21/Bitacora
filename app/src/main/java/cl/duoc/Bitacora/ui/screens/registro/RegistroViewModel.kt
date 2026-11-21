@@ -5,16 +5,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.Bitacora.data.repository.CursoRepository
 import cl.duoc.Bitacora.data.repository.UsuarioRepository
 import cl.duoc.Bitacora.domain.model.RolUsuario
 import cl.duoc.Bitacora.domain.model.Usuario
+import cl.duoc.Bitacora.domain.validation.LoginValidator
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+sealed interface RegistroUiState {
+    object Idle : RegistroUiState
+    object Loading : RegistroUiState
+    data class Success(val mensaje: String) : RegistroUiState
+    data class Error(val mensaje: String) : RegistroUiState
+}
+
 class RegistroViewModel(
-    private val usuarioRepository: UsuarioRepository = UsuarioRepository.obtenerInstancia(),
-    private val cursoRepository: CursoRepository? = null
+    private val usuarioRepository: UsuarioRepository = UsuarioRepository.obtenerInstancia()
 ) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<RegistroUiState>(RegistroUiState.Idle)
+    val uiState: StateFlow<RegistroUiState> = _uiState.asStateFlow()
 
     var nombre by mutableStateOf("")
         private set
@@ -23,6 +35,15 @@ class RegistroViewModel(
         private set
 
     var password by mutableStateOf("")
+        private set
+
+    var errorNombre by mutableStateOf("")
+        private set
+
+    var errorCorreo by mutableStateOf("")
+        private set
+
+    var errorPassword by mutableStateOf("")
         private set
 
     var rol by mutableStateOf(RolUsuario.Estudiante)
@@ -37,18 +58,24 @@ class RegistroViewModel(
     var mensajeExito by mutableStateOf("")
         private set
 
+    var cargando by mutableStateOf(false)
+        private set
+
     fun actualizarNombre(nuevo: String) {
         nombre = nuevo
+        errorNombre = ""
         mensajeError = ""
     }
 
     fun actualizarCorreo(nuevo: String) {
         correo = nuevo
+        errorCorreo = ""
         mensajeError = ""
     }
 
     fun actualizarPassword(nuevo: String) {
         password = nuevo
+        errorPassword = ""
         mensajeError = ""
     }
 
@@ -70,38 +97,62 @@ class RegistroViewModel(
     }
 
     fun registrar(): Boolean {
-        if (nombre.isBlank() || correo.isBlank() || password.isBlank()) {
-            mensajeError = "Todos los campos son obligatorios"
-            return false
+        var valido = true
+
+        if (nombre.isBlank()) {
+            errorNombre = "El nombre es obligatorio"
+            valido = false
+        } else {
+            errorNombre = ""
         }
 
-        // Regla de negocio: El estudiante debe pertenecer a lo menos a un curso
+        errorCorreo = LoginValidator.validarCorreo(correo.trim())
+        if (errorCorreo.isNotEmpty()) valido = false
+
+        errorPassword = LoginValidator.validarPassword(password)
+        if (errorPassword.isNotEmpty()) valido = false
+
         if (rol == RolUsuario.Estudiante && cursosSeleccionados.isEmpty()) {
             mensajeError = "Los estudiantes deben pertenecer a lo menos a un curso."
+            valido = false
+        }
+
+        if (!valido) {
+            _uiState.value = RegistroUiState.Error("Por favor corrige los campos indicados")
             return false
         }
 
         val nuevoUsuario = Usuario(
             nombre = nombre,
-            correo = correo,
+            correo = correo.trim(),
             password = password,
             rol = rol,
             cursoIds = cursosSeleccionados
         )
 
-        var exitoso = false
+        cargando = true
+        _uiState.value = RegistroUiState.Loading
+
         viewModelScope.launch {
-            val resultado = usuarioRepository.registrarUsuario(nuevoUsuario)
-            resultado.onSuccess {
-                mensajeExito = "Usuario registrado exitosamente"
-                mensajeError = ""
-                exitoso = true
-            }.onFailure { ex ->
-                mensajeError = ex.message ?: "Error al registrar usuario"
-                mensajeExito = ""
+            try {
+                val resultado = usuarioRepository.registrarUsuario(nuevoUsuario)
+                cargando = false
+                resultado.onSuccess {
+                    mensajeExito = "Usuario registrado exitosamente"
+                    mensajeError = ""
+                    _uiState.value = RegistroUiState.Success(mensajeExito)
+                }.onFailure { ex ->
+                    mensajeError = ex.message ?: "Error al registrar usuario"
+                    mensajeExito = ""
+                    _uiState.value = RegistroUiState.Error(mensajeError)
+                }
+            } catch (e: Exception) {
+                cargando = false
+                mensajeError = "Error al conectar con el servidor"
+                _uiState.value = RegistroUiState.Error(mensajeError)
             }
         }
 
-        return exitoso
+        return true
     }
 }

@@ -11,9 +11,19 @@ import cl.duoc.Bitacora.data.repository.BitacoraRepository
 import cl.duoc.Bitacora.domain.model.Bitacora
 import cl.duoc.Bitacora.domain.model.EstadoBitacora
 import cl.duoc.Bitacora.domain.validation.BitacoraValidator
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+sealed interface AdministrarUiState {
+    object Idle : AdministrarUiState
+    object Loading : AdministrarUiState
+    data class Success(val mensaje: String) : AdministrarUiState
+    data class Error(val mensaje: String) : AdministrarUiState
+}
 
 class AdministrarBitacorasViewModel(
     application: Application
@@ -23,6 +33,9 @@ class AdministrarBitacorasViewModel(
         BitacoraDatabase.obtenerInstancia(application).bitacoraDao()
 
     private val repository = BitacoraRepository(bitacoraDao)
+
+    private val _uiState = MutableStateFlow<AdministrarUiState>(AdministrarUiState.Idle)
+    val uiState: StateFlow<AdministrarUiState> = _uiState.asStateFlow()
 
     val bitacoras = repository.obtenerTodasLasBitacorasRoom()
         .stateIn(
@@ -55,16 +68,10 @@ class AdministrarBitacorasViewModel(
         anio: String,
         curso: String
     ) {
-        errorAsignatura =
-            BitacoraValidator.validarAsignatura(asignatura)
-
-        errorMes =
-            BitacoraValidator.validarMes(mes)
-
-        errorAnio =
-            BitacoraValidator.validarAnio(anio)
-        errorCurso =
-            BitacoraValidator.validarCurso(curso)
+        errorAsignatura = BitacoraValidator.validarAsignatura(asignatura)
+        errorMes = BitacoraValidator.validarMes(mes)
+        errorAnio = BitacoraValidator.validarAnio(anio)
+        errorCurso = BitacoraValidator.validarCurso(curso)
 
         if (
             errorAsignatura != null ||
@@ -73,6 +80,7 @@ class AdministrarBitacorasViewModel(
             errorCurso != null
         ) {
             mensajeResultado = "Corrige los campos indicados"
+            _uiState.value = AdministrarUiState.Error(mensajeResultado)
             return
         }
 
@@ -80,6 +88,7 @@ class AdministrarBitacorasViewModel(
 
         viewModelScope.launch {
             guardando = true
+            _uiState.value = AdministrarUiState.Loading
 
             try {
                 val nuevaBitacora = Bitacora(
@@ -92,13 +101,12 @@ class AdministrarBitacorasViewModel(
                 )
 
                 repository.guardarBitacora(nuevaBitacora)
-
-                mensajeResultado =
-                    "Bitácora creada correctamente"
+                mensajeResultado = "Bitácora creada correctamente"
+                _uiState.value = AdministrarUiState.Success(mensajeResultado)
 
             } catch (e: Exception) {
-                mensajeResultado =
-                    "Error al crear la bitácora"
+                mensajeResultado = "Error al crear la bitácora"
+                _uiState.value = AdministrarUiState.Error(mensajeResultado)
 
             } finally {
                 guardando = false
@@ -108,17 +116,19 @@ class AdministrarBitacorasViewModel(
 
     fun publicarBitacora(id: Int) {
         viewModelScope.launch {
+            _uiState.value = AdministrarUiState.Loading
             try {
                 val publicada = repository.publicarBitacora(id)
-
-                mensajeResultado = if (publicada) {
-                    "Bitácora publicada correctamente"
+                if (publicada) {
+                    mensajeResultado = "Bitácora publicada correctamente"
+                    _uiState.value = AdministrarUiState.Success(mensajeResultado)
                 } else {
-                    "No se pudo publicar la bitácora"
+                    mensajeResultado = "No se pudo publicar la bitácora"
+                    _uiState.value = AdministrarUiState.Error(mensajeResultado)
                 }
-
             } catch (e: Exception) {
                 mensajeResultado = "Error al publicar la bitácora"
+                _uiState.value = AdministrarUiState.Error(mensajeResultado)
             }
         }
     }

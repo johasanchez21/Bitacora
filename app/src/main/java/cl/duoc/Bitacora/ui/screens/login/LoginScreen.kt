@@ -1,5 +1,8 @@
 package cl.duoc.Bitacora.ui.screens.login
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -7,27 +10,35 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.domain.model.Usuario
+import cl.duoc.Bitacora.ui.viewmodel.LoginUiState
 import cl.duoc.Bitacora.ui.viewmodel.LoginViewModel
 
 @Composable
@@ -37,17 +48,15 @@ fun LoginScreen(
     onLoginExitoso: (Usuario) -> Unit = {},
     loginViewModel: LoginViewModel = viewModel()
 ) {
-
     var mostrarPassword by remember { mutableStateOf(false) }
 
     val correo = loginViewModel.correo
     val password = loginViewModel.password
-
     val errorCorreo = loginViewModel.errorCorreo
     val errorPassword = loginViewModel.errorPassword
-
     val errorLogin = loginViewModel.errorLogin
     val mensajeExito = loginViewModel.mensajeExito
+    val uiState by loginViewModel.uiState.collectAsState()
 
     Column(
         modifier = modifier
@@ -56,17 +65,18 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-
         Text(
             text = "Bitácora",
-            style = MaterialTheme.typography.headlineLarge
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = "Tu espacio de aprendizaje",
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -82,7 +92,7 @@ fun LoginScreen(
             isError = errorCorreo.isNotEmpty(),
             supportingText = {
                 if (errorCorreo.isNotEmpty()) {
-                    Text(errorCorreo)
+                    Text(errorCorreo, color = MaterialTheme.colorScheme.error)
                 }
             }
         )
@@ -100,7 +110,7 @@ fun LoginScreen(
             isError = errorPassword.isNotEmpty(),
             supportingText = {
                 if (errorPassword.isNotEmpty()) {
-                    Text(errorPassword)
+                    Text(errorPassword, color = MaterialTheme.colorScheme.error)
                 }
             },
             visualTransformation = if (mostrarPassword) {
@@ -128,6 +138,17 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        AnimatedVisibility(visible = loginViewModel.cargando || uiState is LoginUiState.Loading) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Iniciando sesión...", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
         Button(
             onClick = {
                 loginViewModel.iniciarSesion(
@@ -136,35 +157,61 @@ fun LoginScreen(
                     }
                 )
             },
-            modifier = Modifier.fillMaxWidth()
+            enabled = !loginViewModel.cargando,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
         ) {
             Text("Iniciar sesión")
         }
 
-        if (mensajeExito.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = mensajeExito,
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyMedium
-            )
+        AnimatedVisibility(
+            visible = mensajeExito.isNotEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Text(
+                    text = mensajeExito,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
         }
 
-        if (errorLogin.isNotEmpty()){
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = errorLogin,
-                color = MaterialTheme.colorScheme.error
-            )
+        AnimatedVisibility(
+            visible = errorLogin.isNotEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Text(
+                    text = errorLogin,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
+        OutlinedButton(
             onClick = onIrARegistro,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
         ) {
             Text("Registrar estudiante o profesor")
         }
