@@ -71,13 +71,13 @@ class ProfesorViewModel(
 
         viewModelScope.launch {
             val res = cursoRepository.registrarCurso(nuevoCurso)
-            res.onSuccess {
+            if (res.isSuccess) {
                 exitoCurso = "Curso registrado con éxito (Año $anioInt)."
                 errorCurso = ""
                 nombreCurso = ""
                 codigoCurso = ""
-            }.onFailure { ex ->
-                errorCurso = ex.message ?: "Error al registrar el curso"
+            } else {
+                errorCurso = res.exceptionOrNull()?.message ?: "Error al registrar el curso"
                 exitoCurso = ""
             }
         }
@@ -122,12 +122,12 @@ class ProfesorViewModel(
 
         viewModelScope.launch {
             val res = bitacoraRepository.asignarBitacoraPorProfesor(profesor, bitacora, curso)
-            res.onSuccess {
+            if (res.isSuccess) {
                 exitoBitacora = "Bitácora creada y asignada al curso '${curso.nombre}'."
                 errorBitacora = ""
                 asignaturaBitacora = ""
-            }.onFailure { ex ->
-                errorBitacora = ex.message ?: "Error al asignar bitácora"
+            } else {
+                errorBitacora = res.exceptionOrNull()?.message ?: "Error al asignar bitácora"
                 exitoBitacora = ""
             }
         }

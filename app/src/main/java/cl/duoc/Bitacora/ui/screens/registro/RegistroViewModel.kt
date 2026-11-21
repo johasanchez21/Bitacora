@@ -118,7 +118,9 @@ class RegistroViewModel(
         }
 
         if (!valido) {
-            _uiState.value = RegistroUiState.Error("Por favor corrige los campos indicados")
+            val err = if (mensajeError.isNotEmpty()) mensajeError else "Por favor corrige los campos indicados"
+            mensajeError = err
+            _uiState.value = RegistroUiState.Error(err)
             return false
         }
 
@@ -137,12 +139,12 @@ class RegistroViewModel(
             try {
                 val resultado = usuarioRepository.registrarUsuario(nuevoUsuario)
                 cargando = false
-                resultado.onSuccess {
+                if (resultado.isSuccess) {
                     mensajeExito = "Usuario registrado exitosamente"
                     mensajeError = ""
                     _uiState.value = RegistroUiState.Success(mensajeExito)
-                }.onFailure { ex ->
-                    mensajeError = ex.message ?: "Error al registrar usuario"
+                } else {
+                    mensajeError = resultado.exceptionOrNull()?.message ?: "Error al registrar usuario"
                     mensajeExito = ""
                     _uiState.value = RegistroUiState.Error(mensajeError)
                 }

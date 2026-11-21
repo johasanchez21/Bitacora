@@ -7,6 +7,7 @@ import cl.duoc.Bitacora.data.remote.mapper.toDomain
 import cl.duoc.Bitacora.data.remote.mapper.toDto
 import cl.duoc.Bitacora.domain.model.RolUsuario
 import cl.duoc.Bitacora.domain.model.Usuario
+import kotlinx.coroutines.CancellationException
 
 class UsuarioRepository(
     private val apiService: BitacoraApiService = RetrofitClient.apiService
@@ -49,7 +50,7 @@ class UsuarioRepository(
                 return response.body()!!.toDomain()
             }
         } catch (e: Exception) {
-            // Fallback a memoria si el backend no responde
+            if (e is CancellationException) throw e
         }
 
         return synchronized(usuariosMemoria) {
@@ -60,23 +61,27 @@ class UsuarioRepository(
     }
 
     suspend fun registrarUsuario(usuario: Usuario): Result<Usuario> {
+        if (usuario.rol == RolUsuario.Estudiante && usuario.cursoIds.isEmpty()) {
+            return Result.failure(IllegalArgumentException("El estudiante debe pertenecer a lo menos a un curso."))
+        }
+
         try {
             val response = apiService.registrarUsuario(usuario.toDto())
             if (response.isSuccessful && response.body() != null) {
                 val u = response.body()!!.toDomain()
                 synchronized(usuariosMemoria) { usuariosMemoria.add(u) }
                 return Result.success(u)
-            } else {
-                return Result.failure(Exception("Error al registrar usuario en el servidor"))
             }
         } catch (e: Exception) {
-            // Fallback local
-            synchronized(usuariosMemoria) {
-                val nuevoId = (usuariosMemoria.maxOfOrNull { it.id } ?: 0) + 1
-                val u = usuario.copy(id = nuevoId)
-                usuariosMemoria.add(u)
-                return Result.success(u)
-            }
+            if (e is CancellationException) throw e
+        }
+
+        // Fallback local
+        synchronized(usuariosMemoria) {
+            val nuevoId = (usuariosMemoria.maxOfOrNull { it.id } ?: 0) + 1
+            val u = usuario.copy(id = nuevoId)
+            usuariosMemoria.add(u)
+            return Result.success(u)
         }
     }
 }

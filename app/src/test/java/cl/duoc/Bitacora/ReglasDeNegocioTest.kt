@@ -4,6 +4,7 @@ import cl.duoc.Bitacora.data.local.dao.BitacoraDao
 import cl.duoc.Bitacora.data.local.dao.CursoDao
 import cl.duoc.Bitacora.data.local.entity.BitacoraEntity
 import cl.duoc.Bitacora.data.local.entity.CursoEntity
+import cl.duoc.Bitacora.data.remote.BitacoraApiService
 import cl.duoc.Bitacora.data.repository.BitacoraRepository
 import cl.duoc.Bitacora.data.repository.CursoRepository
 import cl.duoc.Bitacora.data.repository.UsuarioRepository
@@ -11,6 +12,7 @@ import cl.duoc.Bitacora.domain.model.Bitacora
 import cl.duoc.Bitacora.domain.model.Curso
 import cl.duoc.Bitacora.domain.model.RolUsuario
 import cl.duoc.Bitacora.domain.model.Usuario
+import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -19,6 +21,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReglasDeNegocioTest {
+
+    private val mockApi: BitacoraApiService = mockk(relaxed = true)
 
     // Fake CursoDao para pruebas
     class FakeCursoDao : CursoDao {
@@ -92,11 +96,11 @@ class ReglasDeNegocioTest {
 
     @Test
     fun `Regla 1 - Permite registrar hasta dos cursos por ano pero rechaza el tercero`() = runBlocking {
-        val repo = CursoRepository(FakeCursoDao())
+        val repo = CursoRepository(FakeCursoDao(), mockApi)
 
-        val curso1 = Curso(nombre = "1° Medio A", codigo = "1MA", anio = 2025, semestre = 1)
-        val curso2 = Curso(nombre = "1° Medio B", codigo = "1MB", anio = 2025, semestre = 2)
-        val curso3 = Curso(nombre = "1° Medio C", codigo = "1MC", anio = 2025, semestre = 2)
+        val curso1 = Curso(nombre = "1° Medio A", codigo = "1MA", anio = 2026, semestre = 1)
+        val curso2 = Curso(nombre = "1° Medio B", codigo = "1MB", anio = 2026, semestre = 2)
+        val curso3 = Curso(nombre = "1° Medio C", codigo = "1MC", anio = 2026, semestre = 2)
 
         val res1 = repo.registrarCurso(curso1)
         val res2 = repo.registrarCurso(curso2)
@@ -106,14 +110,14 @@ class ReglasDeNegocioTest {
         assertTrue("El curso 2 debe ser registrado con éxito", res2.isSuccess)
         assertTrue("El curso 3 debe ser rechazado por superar el límite de 2 cursos por año", res3.isFailure)
         assertEquals(
-            "No se pueden registrar más de 2 cursos por año (El año 2025 ya tiene 2 cursos registrados).",
+            "No se pueden registrar más de 2 cursos por año (El año 2026 ya tiene 2 cursos registrados).",
             res3.exceptionOrNull()?.message
         )
     }
 
     @Test
     fun `Regla 2 - Estudiante debe pertenecer a lo menos a un curso`() = runBlocking {
-        val repo = UsuarioRepository()
+        val repo = UsuarioRepository(mockApi)
 
         val estudianteSinCurso = Usuario(
             nombre = "Juan Pérez",
@@ -144,7 +148,7 @@ class ReglasDeNegocioTest {
 
     @Test
     fun `Regla 3 - Las bitacoras deben ser asignadas a un curso en particular por el profesor`() = runBlocking {
-        val bitacoraRepo = BitacoraRepository(FakeBitacoraDao())
+        val bitacoraRepo = BitacoraRepository(FakeBitacoraDao(), mockApi)
 
         val profesor = Usuario(id = 1, nombre = "Prof. Carlos", correo = "carlos@profesor.cl", password = "123", rol = RolUsuario.Profesor)
         val estudiante = Usuario(id = 2, nombre = "Estudiante Ana", correo = "ana@estudiante.cl", password = "123", rol = RolUsuario.Estudiante, cursoIds = listOf(10))
@@ -159,15 +163,12 @@ class ReglasDeNegocioTest {
             curso = "1° Medio A"
         )
 
-        // Intento 1: Asignado por estudiante (Debe fallar)
         val resEstudiante = bitacoraRepo.asignarBitacoraPorProfesor(estudiante, bitacoraPrueba, cursoValido)
         assertTrue("No se debe permitir a un estudiante crear/asignar bitácoras", resEstudiante.isFailure)
 
-        // Intento 2: Asignado por profesor a curso sin id válido (Debe fallar)
         val resCursoInvalido = bitacoraRepo.asignarBitacoraPorProfesor(profesor, bitacoraPrueba, cursoInvalido)
         assertTrue("No se debe permitir asignar bitácora a un curso no registrado", resCursoInvalido.isFailure)
 
-        // Intento 3: Asignado por profesor a curso válido (Debe ser exitoso)
         val resExito = bitacoraRepo.asignarBitacoraPorProfesor(profesor, bitacoraPrueba, cursoValido)
         assertTrue("El profesor debe poder asignar una bitácora a un curso registrado", resExito.isSuccess)
     }

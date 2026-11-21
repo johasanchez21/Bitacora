@@ -6,6 +6,7 @@ import cl.duoc.Bitacora.data.remote.RetrofitClient
 import cl.duoc.Bitacora.data.remote.mapper.toDomain
 import cl.duoc.Bitacora.data.remote.mapper.toDto
 import cl.duoc.Bitacora.domain.model.Curso
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -17,7 +18,7 @@ class CursoRepository(
     companion object {
         private val cursosMemoria = mutableListOf(
             Curso(id = 1, nombre = "1° Medio A", codigo = "1MA", anio = 2025, semestre = 1),
-            Curso(id = 2, nombre = "2° Medio B", codigo = "2MB", anio = 2025, semestre = 2)
+            Curso(id = 2, nombre = "1° Medio B", codigo = "1MB", anio = 2025, semestre = 1)
         )
 
         @Volatile
@@ -45,7 +46,7 @@ class CursoRepository(
                 return Result.success(cursoGuardado.id.toLong())
             }
         } catch (e: Exception) {
-            // Fallback red
+            if (e is CancellationException) throw e
         }
 
         val cantidadEnAnio = synchronized(cursosMemoria) {
@@ -79,7 +80,7 @@ class CursoRepository(
                 return@flow
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
         emit(synchronized(cursosMemoria) { cursosMemoria.toList() })
     }
@@ -91,7 +92,7 @@ class CursoRepository(
                 return response.body()!!.map { it.toDomain() }
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
         return synchronized(cursosMemoria) { cursosMemoria.filter { it.anio == anio } }
     }

@@ -2,12 +2,14 @@ package cl.duoc.Bitacora.domain.validation
 
 object LoginValidator {
 
+    private val EMAIL_REGEX = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+
     fun validarCorreo(correo: String): String {
         if (correo.isBlank()) {
             return "El correo es obligatorio"
         }
 
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(correo).matches()) {
+        if (!correo.matches(EMAIL_REGEX)) {
             return "Ingresa un correo válido"
         }
 

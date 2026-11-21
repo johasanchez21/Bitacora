@@ -10,6 +10,7 @@ import cl.duoc.Bitacora.data.remote.mapper.toDomain
 import cl.duoc.Bitacora.data.remote.mapper.toDto
 import cl.duoc.Bitacora.domain.model.EntradaBitacora
 import cl.duoc.Bitacora.domain.model.EstadoEntrada
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -45,7 +46,7 @@ class EntradaBitacoraRepository(
                     return guardada.id.toLong()
                 }
             } catch (e: Exception) {
-                // Fallback local
+                if (e is CancellationException) throw e
             }
         }
 
@@ -71,7 +72,7 @@ class EntradaBitacoraRepository(
                 remotas = response.body()!!.map { it.toDomain() }
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
 
         if (dao != null) {
@@ -132,7 +133,7 @@ class EntradaBitacoraRepository(
                 return true
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
 
         if (dao != null) {
@@ -158,7 +159,7 @@ class EntradaBitacoraRepository(
                 return@flow
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
 
         if (dao != null) {
@@ -186,7 +187,7 @@ class EntradaBitacoraRepository(
                 return true
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
 
         if (dao != null) {

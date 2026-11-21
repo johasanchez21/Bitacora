@@ -12,6 +12,7 @@ import cl.duoc.Bitacora.domain.model.Curso
 import cl.duoc.Bitacora.domain.model.EstadoBitacora
 import cl.duoc.Bitacora.domain.model.RolUsuario
 import cl.duoc.Bitacora.domain.model.Usuario
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -78,7 +79,7 @@ class BitacoraRepository(
                 return Result.success(b.id.toLong())
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
 
         val nuevoId = (bitacorasMemoria.maxOfOrNull { it.id } ?: 0) + 1
@@ -102,7 +103,7 @@ class BitacoraRepository(
                 return b.id.toLong()
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
 
         val nuevoId = (bitacorasMemoria.maxOfOrNull { it.id } ?: 0) + 1
@@ -122,7 +123,7 @@ class BitacoraRepository(
                 if (encontrada != null) return encontrada
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
         if (bitacoraDao != null) {
             val entity = bitacoraDao.obtenerBitacoraPorId(id)
@@ -144,7 +145,7 @@ class BitacoraRepository(
                 return@flow
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
         if (bitacoraDao != null) {
             bitacoraDao.obtenerTodasLasBitacoras().collect { entidades ->
@@ -166,7 +167,7 @@ class BitacoraRepository(
                 return@flow
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
         emit(synchronized(bitacorasMemoria) {
             bitacorasMemoria.filter { it.curso == curso && it.estado == EstadoBitacora.PUBLICADA }
@@ -180,7 +181,7 @@ class BitacoraRepository(
                 return true
             }
         } catch (e: Exception) {
-            // Fallback
+            if (e is CancellationException) throw e
         }
         synchronized(bitacorasMemoria) {
             val idx = bitacorasMemoria.indexOfFirst { it.id == id }

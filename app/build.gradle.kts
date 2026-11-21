@@ -55,6 +55,8 @@ dependencies {
     implementation("androidx.room:room-ktx:2.8.4")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     testImplementation(libs.junit)
+    testImplementation("io.mockk:mockk:1.13.16")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -69,13 +71,12 @@ kover {
         filters {
             includes {
                 classes(
-                    "cl.duoc.consumiendoapi.ui.form.ClienteValidator*",
-                    "cl.duoc.consumiendoapi.ui.form.ClienteFormViewModel*",
-                    "cl.duoc.consumiendoapi.ui.clientes.ClientesViewModel*",
-                    "cl.duoc.consumiendoapi.data.repository.ClientesRepository*",
-                    "cl.duoc.consumiendoapi.data.repository.ApiErrorMapper*",
-                    "cl.duoc.consumiendoapi.data.usecase.ClientesUseCases*",
-                    "cl.duoc.consumiendoapi.domain.usecase.CalcularEstadisticasUseCase*"
+                    "cl.duoc.Bitacora.domain.validation.*",
+                    "cl.duoc.Bitacora.data.repository.*",
+                    "cl.duoc.Bitacora.ui.viewmodel.*",
+                    "cl.duoc.Bitacora.ui.screens.estudiante.EstudianteViewModel*",
+                    "cl.duoc.Bitacora.ui.screens.profesor.ProfesorViewModel*",
+                    "cl.duoc.Bitacora.ui.screens.registro.RegistroViewModel*"
                 )
             }
         }
