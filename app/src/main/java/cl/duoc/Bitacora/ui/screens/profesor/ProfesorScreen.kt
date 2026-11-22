@@ -1,5 +1,6 @@
 package cl.duoc.Bitacora.ui.screens.profesor
 
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,11 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddCard
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.ChevronRight
@@ -44,12 +49,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.domain.model.Curso
 import cl.duoc.Bitacora.domain.model.Usuario
+import coil3.compose.AsyncImage
 
 enum class VistaProfesor {
     MENU,
@@ -172,12 +180,18 @@ fun ProfesorScreen(
                     onVolver = { vistaActual = VistaProfesor.MENU }
                 )
 
+                val scrollState = rememberScrollState()
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .verticalScroll(scrollState),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Text(
                             text = "Registrar Nuevo Curso (Regla: Máx. 2 por año)",
                             style = MaterialTheme.typography.titleMedium,
@@ -242,12 +256,18 @@ fun ProfesorScreen(
                     onVolver = { vistaActual = VistaProfesor.MENU }
                 )
 
+                val scrollState = rememberScrollState()
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .verticalScroll(scrollState),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Text(
                             text = "Asignar Nueva Bitácora a Curso",
                             style = MaterialTheme.typography.titleMedium,
@@ -451,6 +471,20 @@ fun ProfesorScreen(
                                         Text("Dudas: ${entrada.dudas}", style = MaterialTheme.typography.bodyMedium)
                                     }
 
+                                    if (entrada.fotoUri != null) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("📷 Imagen adjunta por estudiante:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                        AsyncImage(
+                                            model = Uri.parse(entrada.fotoUri),
+                                            contentDescription = "Imagen enviada por alumno",
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(180.dp)
+                                                .clip(RoundedCornerShape(8.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+
                                     Spacer(modifier = Modifier.height(8.dp))
 
                                     if (entradaAComentarId == entrada.id) {
@@ -470,6 +504,8 @@ fun ProfesorScreen(
                                             },
                                             shape = RoundedCornerShape(10.dp)
                                         ) {
+                                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
                                             Text("Guardar Revisión")
                                         }
                                     } else {

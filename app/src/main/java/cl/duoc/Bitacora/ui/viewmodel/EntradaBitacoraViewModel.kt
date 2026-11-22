@@ -69,8 +69,10 @@ class EntradaBitacoraViewModel(
     var mensajeResultado by mutableStateOf("")
         private set
 
-    var fotoUri by mutableStateOf<String?>(null)
+    var fotosUris by mutableStateOf<List<String>>(emptyList())
         private set
+
+    val fotoUri: String? get() = if (fotosUris.isNotEmpty()) fotosUris.joinToString(";") else null
 
     var guardandoFoto by mutableStateOf(false)
         private set
@@ -131,7 +133,7 @@ class EntradaBitacoraViewModel(
                 errorDudas = ""
 
                 mensajeResultado = ""
-                fotoUri = entrada.fotoUri
+                fotosUris = entrada.obtenerListaFotos()
                 _uiState.value = EntradaUiState.Idle
 
             } catch (e: Exception) {
@@ -163,6 +165,7 @@ class EntradaBitacoraViewModel(
             return false
         }
 
+        val fotoUriString = if (fotosUris.isNotEmpty()) fotosUris.joinToString(";") else null
         val entrada = EntradaBitacora(
             id = borradorId ?: 0,
             bitacoraId = bitacoraId,
@@ -172,7 +175,8 @@ class EntradaBitacoraViewModel(
             aprendizaje = aprendizaje,
             dudas = dudas,
             estado = EstadoEntrada.BORRADOR,
-            fotoUri = fotoUri
+            fotoUri = fotoUriString,
+            fotosUris = fotosUris
         )
 
         mensajeResultado = "Guardando borrador..."
@@ -220,6 +224,7 @@ class EntradaBitacoraViewModel(
             return false
         }
 
+        val fotoUriString = if (fotosUris.isNotEmpty()) fotosUris.joinToString(";") else null
         val entrada = EntradaBitacora(
             id = borradorId ?: 0,
             bitacoraId = bitacoraId,
@@ -229,7 +234,8 @@ class EntradaBitacoraViewModel(
             aprendizaje = aprendizaje,
             dudas = dudas,
             estado = EstadoEntrada.ENVIADA,
-            fotoUri = fotoUri
+            fotoUri = fotoUriString,
+            fotosUris = fotosUris
         )
 
         mensajeResultado = "Enviando entrada..."
@@ -275,13 +281,17 @@ class EntradaBitacoraViewModel(
         errorDudas = ""
 
         mensajeResultado = ""
-        fotoUri = null
+        fotosUris = emptyList()
         errorFoto = null
         _uiState.value = EntradaUiState.Idle
     }
 
     fun guardarFotografia(uriSeleccionada: Uri) {
         if (guardandoFoto) return
+        if (fotosUris.size >= 3) {
+            errorFoto = "Solo se permiten hasta 3 imágenes por entrada."
+            return
+        }
 
         viewModelScope.launch {
             guardandoFoto = true
@@ -290,7 +300,7 @@ class EntradaBitacoraViewModel(
             try {
                 val rutaGuardada = fotoRepository.guardarFoto(uriSeleccionada)
                 if (rutaGuardada != null) {
-                    fotoUri = rutaGuardada
+                    fotosUris = (fotosUris + rutaGuardada).take(3)
                 } else {
                     errorFoto = "No se pudo guardar la fotografía"
                 }
@@ -299,6 +309,13 @@ class EntradaBitacoraViewModel(
             } finally {
                 guardandoFoto = false
             }
+        }
+    }
+
+    fun eliminarFotografia(index: Int) {
+        if (index in fotosUris.indices) {
+            fotosUris = fotosUris.toMutableList().apply { removeAt(index) }
+            errorFoto = null
         }
     }
 }

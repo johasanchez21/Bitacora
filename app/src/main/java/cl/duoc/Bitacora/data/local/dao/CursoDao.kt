@@ -2,6 +2,7 @@ package cl.duoc.Bitacora.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import cl.duoc.Bitacora.data.local.entity.CursoEntity
 import kotlinx.coroutines.flow.Flow
@@ -9,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CursoDao {
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertarCurso(curso: CursoEntity): Long
 
     @Query("SELECT * FROM cursos ORDER BY anio DESC, semestre ASC")

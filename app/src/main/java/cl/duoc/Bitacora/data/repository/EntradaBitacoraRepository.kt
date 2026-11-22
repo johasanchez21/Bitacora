@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 
 class EntradaBitacoraRepository(
-    @Volatile internal var dao: EntradaBitacoraDao? = null,
+    var dao: EntradaBitacoraDao? = null,
     private val apiService: BitacoraApiService = RetrofitClient.apiService
 ) {
 
@@ -28,13 +28,7 @@ class EntradaBitacoraRepository(
         private var INSTANCE: EntradaBitacoraRepository? = null
 
         fun obtenerInstancia(dao: EntradaBitacoraDao? = null): EntradaBitacoraRepository {
-            return INSTANCE?.also {
-                if (dao != null && it.dao == null) {
-                    synchronized(this) {
-                        it.dao = dao
-                    }
-                }
-            } ?: synchronized(this) {
+            return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: EntradaBitacoraRepository(dao).also { INSTANCE = it }
             }
         }
@@ -95,13 +89,11 @@ class EntradaBitacoraRepository(
                 synchronized(entradasMemoria) {
                     val nuevoId = if (entradaServidor.id > 0) entradaServidor.id else ((entradasMemoria.maxOfOrNull { it.id } ?: 0) + 1)
                     val e = entradaServidor.copy(id = nuevoId)
-                    synchronized(entradasMemoria) {
-                        val idx = entradasMemoria.indexOfFirst { it.id == nuevoId }
-                        if (idx != -1) {
-                            entradasMemoria[idx] = e
-                        } else {
-                            entradasMemoria.add(e)
-                        }
+                    val idx = entradasMemoria.indexOfFirst { it.id == nuevoId }
+                    if (idx != -1) {
+                        entradasMemoria[idx] = e
+                    } else {
+                        entradasMemoria.add(e)
                     }
                     notificarCambioMemoria()
                     return nuevoId.toLong()
@@ -109,7 +101,7 @@ class EntradaBitacoraRepository(
             }
         }
 
-        // Guardado local prioritario para BORRADOR
+        // Guardado BORRADOR local
         val currentDao = dao
         val idGenerado: Long = if (currentDao != null) {
             val entradaAInsertar = if (entrada.id > 0) entrada else entrada.copy(id = 0)
@@ -142,7 +134,7 @@ class EntradaBitacoraRepository(
         }
 
         try {
-            val dtoSinIdLocal = entrada.copy(id = 0).toDto()
+            val dtoSinIdLocal = entrada.copy(id = idGenerado.toInt()).toDto()
             apiService.crearEntrada(dtoSinIdLocal)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -210,14 +202,8 @@ class EntradaBitacoraRepository(
         entrada: EntradaBitacora
     ): Boolean {
         val currentDao = dao
-        val exitoLocal: Boolean
         if (currentDao != null) {
-            val existente = currentDao.obtenerEntradaPorId(entrada.id)
-            if (existente != null) {
-                currentDao.actualizarEntrada(entrada.toEntity())
-            } else {
-                currentDao.insertarEntrada(entrada.toEntity())
-            }
+            currentDao.insertarEntrada(entrada.toEntity())
             synchronized(entradasMemoria) {
                 val idx = entradasMemoria.indexOfFirst { it.id == entrada.id }
                 if (idx != -1) {
@@ -227,7 +213,6 @@ class EntradaBitacoraRepository(
                 }
                 notificarCambioMemoria()
             }
-            exitoLocal = true
         } else {
             synchronized(entradasMemoria) {
                 val idx = entradasMemoria.indexOfFirst { it.id == entrada.id }
@@ -238,35 +223,29 @@ class EntradaBitacoraRepository(
                 }
                 notificarCambioMemoria()
             }
-            exitoLocal = true
         }
 
         try {
-            val dtoSinIdLocal = entrada.copy(id = 0).toDto()
-            apiService.crearEntrada(dtoSinIdLocal)
+            apiService.crearEntrada(entrada.toDto())
         } catch (e: Exception) {
             if (e is CancellationException) throw e
         }
 
-        return exitoLocal
+        return true
     }
 
     suspend fun enviarBorrador(
         entrada: EntradaBitacora
     ): Boolean {
         val entradaEnviada = entrada.copy(estado = EstadoEntrada.ENVIADA)
+        val currentDao = dao
+
         try {
             val response = apiService.crearEntrada(entradaEnviada.toDto())
             if (response.isSuccessful && response.body() != null) {
                 val entradaFinal = response.body()!!.toDomain()
-                val currentDao = dao
                 if (currentDao != null) {
-                    val existente = currentDao.obtenerEntradaPorId(entradaFinal.id)
-                    if (existente != null) {
-                        currentDao.actualizarEntrada(entradaFinal.toEntity())
-                    } else {
-                        currentDao.insertarEntrada(entradaFinal.toEntity())
-                    }
+                    currentDao.insertarEntrada(entradaFinal.toEntity())
                 }
                 synchronized(entradasMemoria) {
                     val idx = entradasMemoria.indexOfFirst { it.id == entradaFinal.id }
@@ -283,15 +262,10 @@ class EntradaBitacoraRepository(
             if (e is CancellationException) throw e
         }
 
+        // Si la llamada al backend no fue exitosa o no hubo conexion:
         val borradorLocal = entrada.copy(estado = EstadoEntrada.BORRADOR)
-        val currentDao = dao
         if (currentDao != null) {
-            val existente = currentDao.obtenerEntradaPorId(borradorLocal.id)
-            if (existente != null) {
-                currentDao.actualizarEntrada(borradorLocal.toEntity())
-            } else {
-                currentDao.insertarEntrada(borradorLocal.toEntity())
-            }
+            currentDao.insertarEntrada(borradorLocal.toEntity())
         }
         synchronized(entradasMemoria) {
             val idx = entradasMemoria.indexOfFirst { it.id == borradorLocal.id }
@@ -306,16 +280,6 @@ class EntradaBitacoraRepository(
     }
 
     fun obtenerEntradasEnviadas(): Flow<List<EntradaBitacora>> = flow {
-        try {
-            val response = apiService.obtenerEntradasEnviadas()
-            if (response.isSuccessful && response.body() != null) {
-                emit(response.body()!!.map { it.toDomain() })
-                return@flow
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-        }
-
         val currentDao = dao
         if (currentDao != null) {
             currentDao.obtenerEntradasEnviadas().collect { lista ->
@@ -326,6 +290,15 @@ class EntradaBitacoraRepository(
                 emit(list.filter { it.estado == EstadoEntrada.ENVIADA })
             }
         }
+
+        try {
+            val response = apiService.obtenerEntradasEnviadas()
+            if (response.isSuccessful && response.body() != null) {
+                emit(response.body()!!.map { it.toDomain() })
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+        }
     }
 
     suspend fun revisarEntrada(
@@ -333,46 +306,24 @@ class EntradaBitacoraRepository(
         comentarioProfesor: String
     ): Boolean {
         if (comentarioProfesor.isBlank()) return false
-        try {
-            val response = apiService.revisarEntrada(
-                entradaId.toLong(),
-                RevisarEntradaRequestDto(comentarioProfesor.trim())
-            )
-            if (response.isSuccessful) {
-                val guardada = response.body()?.toDomain()
-                if (guardada != null) {
-                    val currentDao = dao
-                    if (currentDao != null) {
-                        currentDao.actualizarEntrada(guardada.toEntity())
-                    }
-                    synchronized(entradasMemoria) {
-                        val idx = entradasMemoria.indexOfFirst { it.id == guardada.id }
-                        if (idx != -1) entradasMemoria[idx] = guardada else entradasMemoria.add(guardada)
-                        notificarCambioMemoria()
-                    }
-                }
-                return true
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-        }
-
         val currentDao = dao
+
         if (currentDao != null) {
-            val entradaExistente = currentDao.obtenerEntradaPorId(entradaId) ?: return false
-            val actualizada = entradaExistente.copy(
-                comentarioProfesor = comentarioProfesor.trim(),
-                estado = EstadoEntrada.REVISADA.name
-            )
-            currentDao.actualizarEntrada(actualizada)
-            synchronized(entradasMemoria) {
-                val idx = entradasMemoria.indexOfFirst { it.id == entradaId }
-                if (idx != -1) {
-                    entradasMemoria[idx] = actualizada.toModel()
+            val entradaExistente = currentDao.obtenerEntradaPorId(entradaId)
+            if (entradaExistente != null) {
+                val actualizada = entradaExistente.copy(
+                    comentarioProfesor = comentarioProfesor.trim(),
+                    estado = EstadoEntrada.REVISADA.name
+                )
+                currentDao.insertarEntrada(actualizada)
+                synchronized(entradasMemoria) {
+                    val idx = entradasMemoria.indexOfFirst { it.id == entradaId }
+                    if (idx != -1) {
+                        entradasMemoria[idx] = actualizada.toModel()
+                    }
                     notificarCambioMemoria()
                 }
             }
-            return true
         } else {
             synchronized(entradasMemoria) {
                 val idx = entradasMemoria.indexOfFirst { it.id == entradaId }
@@ -382,10 +333,19 @@ class EntradaBitacoraRepository(
                         estado = EstadoEntrada.REVISADA
                     )
                     notificarCambioMemoria()
-                    return true
                 }
             }
-            return false
         }
+
+        try {
+            apiService.revisarEntrada(
+                entradaId.toLong(),
+                RevisarEntradaRequestDto(comentarioProfesor.trim())
+            )
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+        }
+
+        return true
     }
 }

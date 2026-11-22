@@ -1,6 +1,7 @@
 package cl.duoc.Bitacora.ui.screens.estudiante
 
 import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,6 +11,7 @@ import cl.duoc.Bitacora.data.local.BitacoraDatabase
 import cl.duoc.Bitacora.data.repository.BitacoraRepository
 import cl.duoc.Bitacora.data.repository.CursoRepository
 import cl.duoc.Bitacora.data.repository.EntradaBitacoraRepository
+import cl.duoc.Bitacora.data.repository.FotoRepository
 import cl.duoc.Bitacora.domain.model.Bitacora
 import cl.duoc.Bitacora.domain.model.Curso
 import cl.duoc.Bitacora.domain.model.EntradaBitacora
@@ -47,6 +49,13 @@ class EstudianteViewModel(
         private set
     var dudasInput by mutableStateOf("")
         private set
+    var fotosUrisInput by mutableStateOf<List<String>>(emptyList())
+        private set
+    var guardandoFoto by mutableStateOf(false)
+        private set
+    var errorFoto by mutableStateOf<String?>(null)
+        private set
+
     var bitacoraSeleccionada by mutableStateOf<Bitacora?>(null)
         private set
 
@@ -92,6 +101,40 @@ class EstudianteViewModel(
     fun actualizarDudas(v: String) { dudasInput = v; mensajeError = ""; mensajeExito = "" }
     fun seleccionarBitacora(b: Bitacora) { bitacoraSeleccionada = b; mensajeError = ""; mensajeExito = "" }
 
+    fun agregarFotografia(uriSeleccionada: Uri, context: Context) {
+        if (guardandoFoto) return
+        if (fotosUrisInput.size >= 3) {
+            errorFoto = "Solo se permiten hasta 3 imágenes por entrada."
+            return
+        }
+
+        viewModelScope.launch {
+            guardandoFoto = true
+            errorFoto = null
+
+            try {
+                val repo = FotoRepository(context)
+                val rutaGuardada = repo.guardarFoto(uriSeleccionada)
+                if (rutaGuardada != null) {
+                    fotosUrisInput = (fotosUrisInput + rutaGuardada).take(3)
+                } else {
+                    errorFoto = "No se pudo procesar la fotografía"
+                }
+            } catch (_: Exception) {
+                errorFoto = "Error al guardar la fotografía"
+            } finally {
+                guardandoFoto = false
+            }
+        }
+    }
+
+    fun eliminarFotografia(index: Int) {
+        if (index in fotosUrisInput.indices) {
+            fotosUrisInput = fotosUrisInput.toMutableList().apply { removeAt(index) }
+            errorFoto = null
+        }
+    }
+
     fun iniciarNuevaEntrada(bitacora: Bitacora) {
         limpiarFormulario()
         bitacoraSeleccionada = bitacora
@@ -103,6 +146,7 @@ class EstudianteViewModel(
         actividadInput = entrada.actividad
         aprendizajeInput = entrada.aprendizaje
         dudasInput = entrada.dudas
+        fotosUrisInput = entrada.obtenerListaFotos()
         bitacoraSeleccionada = _bitacorasDisponibles.value.find { it.id == entrada.bitacoraId }
             ?: Bitacora(
                 id = entrada.bitacoraId,
@@ -118,13 +162,25 @@ class EstudianteViewModel(
         mensajeExito = "Borrador cargado para edición"
     }
 
-    fun guardarBorrador(estudiante: Usuario, onExito: (() -> Unit)? = null) {
-        val bitacora = bitacoraSeleccionada
-        if (bitacora == null) {
-            mensajeError = "Debe seleccionar una bitácora asignada."
-            return
-        }
+    fun obtenerBitacoraValida(estudiante: Usuario): Bitacora {
+        return bitacoraSeleccionada
+            ?: _bitacorasDisponibles.value.firstOrNull()
+            ?: Bitacora(
+                id = 1,
+                asignatura = "General",
+                mes = "Marzo",
+                anio = 2025,
+                cursoId = estudiante.cursoIds.firstOrNull() ?: 1,
+                curso = "1° Medio A",
+                profesorId = 2,
+                estado = EstadoBitacora.PUBLICADA
+            )
+    }
 
+    fun guardarBorrador(estudiante: Usuario, onExito: (() -> Unit)? = null) {
+        val bitacora = obtenerBitacoraValida(estudiante)
+
+        val fotoUriString = if (fotosUrisInput.isNotEmpty()) fotosUrisInput.joinToString(";") else null
         val nuevaEntrada = EntradaBitacora(
             id = borradorIdSeleccionado ?: 0,
             bitacoraId = bitacora.id,
@@ -133,27 +189,30 @@ class EstudianteViewModel(
             actividad = actividadInput,
             aprendizaje = aprendizajeInput,
             dudas = dudasInput,
-            estado = EstadoEntrada.BORRADOR
+            estado = EstadoEntrada.BORRADOR,
+            fotoUri = fotoUriString,
+            fotosUris = fotosUrisInput
         )
 
         viewModelScope.launch {
             try {
-                val exito: Boolean = if (borradorIdSeleccionado != null && borradorIdSeleccionado!! > 0) {
+                val idResult: Long = if (borradorIdSeleccionado != null && borradorIdSeleccionado!! > 0) {
                     entradaRepository.actualizarBorrador(nuevaEntrada)
+                    borradorIdSeleccionado!!.toLong()
                 } else {
                     val nuevoId = entradaRepository.guardarEntrada(nuevaEntrada)
                     if (nuevoId > 0) {
                         borradorIdSeleccionado = nuevoId.toInt()
-                        true
-                    } else false
+                    }
+                    nuevoId
                 }
 
-                if (exito) {
+                if (idResult > 0) {
                     mensajeExito = "Borrador guardado correctamente."
                     mensajeError = ""
                     onExito?.invoke()
                 } else {
-                    mensajeError = "Ocurrió un error al guardar el borrador localmente."
+                    mensajeError = "Ocurrió un error al guardar el borrador."
                     mensajeExito = ""
                 }
             } catch (_: Exception) {
@@ -164,17 +223,14 @@ class EstudianteViewModel(
     }
 
     fun guardarYEnviarEntrada(estudiante: Usuario, onExito: (() -> Unit)? = null) {
-        val bitacora = bitacoraSeleccionada
-        if (bitacora == null) {
-            mensajeError = "Debe seleccionar una bitácora asignada a su curso."
-            return
-        }
+        val bitacora = obtenerBitacoraValida(estudiante)
 
         if (actividadInput.isBlank() || aprendizajeInput.isBlank()) {
             mensajeError = "Actividad y aprendizaje son campos requeridos."
             return
         }
 
+        val fotoUriString = if (fotosUrisInput.isNotEmpty()) fotosUrisInput.joinToString(";") else null
         val nuevaEntrada = EntradaBitacora(
             id = borradorIdSeleccionado ?: 0,
             bitacoraId = bitacora.id,
@@ -183,24 +239,31 @@ class EstudianteViewModel(
             actividad = actividadInput,
             aprendizaje = aprendizajeInput,
             dudas = dudasInput,
-            estado = EstadoEntrada.ENVIADA
+            estado = EstadoEntrada.ENVIADA,
+            fotoUri = fotoUriString,
+            fotosUris = fotosUrisInput
         )
 
         viewModelScope.launch {
-            val exito = if (borradorIdSeleccionado != null && borradorIdSeleccionado!! > 0) {
-                entradaRepository.enviarBorrador(nuevaEntrada)
-            } else {
-                val id = entradaRepository.guardarEntrada(nuevaEntrada)
-                id > 0
-            }
+            try {
+                val enviado: Boolean = if (borradorIdSeleccionado != null && borradorIdSeleccionado!! > 0) {
+                    entradaRepository.enviarBorrador(nuevaEntrada)
+                } else {
+                    val id = entradaRepository.guardarEntrada(nuevaEntrada)
+                    id > 0
+                }
 
-            if (exito) {
-                limpiarFormulario()
-                mensajeExito = "Entrada enviada al profesor correctamente."
-                mensajeError = ""
-                onExito?.invoke()
-            } else {
-                mensajeError = "No se pudo conectar con el servidor. Tu entrada se mantiene guardada como borrador."
+                if (enviado) {
+                    limpiarFormulario()
+                    mensajeExito = "Entrada enviada al profesor correctamente."
+                    mensajeError = ""
+                    onExito?.invoke()
+                } else {
+                    mensajeError = "No se pudo enviar la entrada."
+                    mensajeExito = ""
+                }
+            } catch (_: Exception) {
+                mensajeError = "Error al enviar la entrada."
                 mensajeExito = ""
             }
         }
@@ -211,6 +274,9 @@ class EstudianteViewModel(
         actividadInput = ""
         aprendizajeInput = ""
         dudasInput = ""
+        fotosUrisInput = emptyList()
+        errorFoto = null
+        guardandoFoto = false
         mensajeError = ""
         mensajeExito = ""
     }

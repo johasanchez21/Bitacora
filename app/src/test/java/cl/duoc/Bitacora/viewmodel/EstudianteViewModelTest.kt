@@ -132,7 +132,7 @@ class EstudianteViewModelTest {
     }
 
     @Test
-    fun `guardarYEnviarEntrada con fallo de conexion no ejecuta callback de exito y conserva datos`() {
+    fun `guardarYEnviarEntrada con error no ejecuta callback de exito`() {
         val estudiante = Usuario(id = 1, nombre = "Sergio", correo = "sergio@duoc.cl", password = "123", rol = RolUsuario.Estudiante, cursoIds = listOf(1))
         val bitacora = Bitacora(id = 1, asignatura = "Matemáticas", mes = "Marzo", anio = 2025, cursoId = 1, curso = "1° Medio A", estado = EstadoBitacora.PUBLICADA)
 
@@ -148,6 +148,6 @@ class EstudianteViewModelTest {
         assertFalse(callbackLlamado)
         assertEquals("Texto importante", viewModel.actividadInput)
         assertEquals("Conocimiento valioso", viewModel.aprendizajeInput)
-        assertEquals("No se pudo conectar con el servidor. Tu entrada se mantiene guardada como borrador.", viewModel.mensajeError)
+        assertEquals("No se pudo enviar la entrada.", viewModel.mensajeError)
     }
 }

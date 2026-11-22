@@ -2,23 +2,28 @@ package cl.duoc.Bitacora.ui.screens.estudiante
 
 import android.app.DatePickerDialog
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -32,8 +37,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.ui.viewmodel.EntradaBitacoraViewModel
@@ -58,7 +65,7 @@ fun CrearEntradaScreen(
         context,
         { _, anio, mes, dia ->
             val fechaSeleccionada =
-                "%02d/%02d/%04d".format(dia, mes + 1, anio)
+                "%04d-%02d-%02d".format(anio, mes + 1, dia)
 
             entradaViewModel.actualizarFecha(fechaSeleccionada)
         },
@@ -66,14 +73,6 @@ fun CrearEntradaScreen(
         calendario.get(Calendar.MONTH),
         calendario.get(Calendar.DAY_OF_MONTH)
     )
-
-    val selectorFoto = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            entradaViewModel.guardarFotografia(uri)
-        }
-    }
 
     LaunchedEffect(borradorId, estudianteId, bitacoraId) {
         if (borradorId != null) {
@@ -96,7 +95,7 @@ fun CrearEntradaScreen(
     ) {
 
         Text(
-            text = "Crear entrada",
+            text = "Crear entrada de bitácora",
             style = MaterialTheme.typography.headlineMedium
         )
 
@@ -163,40 +162,59 @@ fun CrearEntradaScreen(
             minLines = 2
         )
 
-        Button(
-            onClick = {
-                selectorFoto.launch(
-                    PickVisualMediaRequest(
-                        ActivityResultContracts.PickVisualMedia.ImageOnly
-                    )
-                )
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Seleccionar fotografía")
-        }
+        // Selector con Permisos para Galería o Cámara (Máximo 3 imágenes)
+        SelectorImagenConPermisos(
+            cantidadActual = entradaViewModel.fotosUris.size,
+            onFotoSeleccionada = { uri ->
+                entradaViewModel.guardarFotografia(uri)
+            }
+        )
 
         AnimatedVisibility(visible = entradaViewModel.guardandoFoto || uiState is EntradaUiState.Loading) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 CircularProgressIndicator(modifier = Modifier.size(28.dp))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Procesando...", style = MaterialTheme.typography.bodySmall)
+                Text("Procesando imagen...", style = MaterialTheme.typography.bodySmall)
             }
         }
 
-        entradaViewModel.fotoUri?.let { rutaFoto ->
-            Text("Fotografía adjunta:")
-
-            AsyncImage(
-                model = Uri.parse(rutaFoto),
-                contentDescription = "Fotografía adjunta a la entrada",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentScale = ContentScale.Fit
+        if (entradaViewModel.fotosUris.isNotEmpty()) {
+            Text(
+                text = "Fotografías adjuntas (${entradaViewModel.fotosUris.size}/3):",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
             )
 
-            Text("Fotografía guardada correctamente", color = MaterialTheme.colorScheme.primary)
+            entradaViewModel.fotosUris.forEachIndexed { index, rutaFoto ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("📷 Imagen ${index + 1}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            IconButton(onClick = { entradaViewModel.eliminarFotografia(index) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Eliminar Foto", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+
+                        AsyncImage(
+                            model = Uri.parse(rutaFoto),
+                            contentDescription = "Fotografía $index adjunta",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
         }
 
         entradaViewModel.errorFoto?.let { error ->
@@ -206,32 +224,41 @@ fun CrearEntradaScreen(
             )
         }
 
-        Button(
-            onClick = {
-                entradaViewModel.guardarBorrador(
-                    estudianteId = estudianteId,
-                    bitacoraId = bitacoraId
-                )
-            },
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            enabled = !entradaViewModel.guardandoFoto,
-            shape = RoundedCornerShape(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Guardar borrador")
-        }
+            OutlinedButton(
+                onClick = {
+                    entradaViewModel.guardarBorrador(
+                        estudianteId = estudianteId,
+                        bitacoraId = bitacoraId
+                    )
+                },
+                modifier = Modifier.weight(1f),
+                enabled = !entradaViewModel.guardandoFoto,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Guardar borrador")
+            }
 
-        Button(
-            onClick = {
-                entradaViewModel.enviarEntrada(
-                    estudianteId = estudianteId,
-                    bitacoraId = bitacoraId
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !entradaViewModel.guardandoFoto,
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Enviar entrada")
+            Button(
+                onClick = {
+                    entradaViewModel.enviarEntrada(
+                        estudianteId = estudianteId,
+                        bitacoraId = bitacoraId
+                    )
+                },
+                modifier = Modifier.weight(1f),
+                enabled = !entradaViewModel.guardandoFoto,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Enviar entrada")
+            }
         }
 
         AnimatedVisibility(visible = entradaViewModel.mensajeResultado.isNotEmpty()) {

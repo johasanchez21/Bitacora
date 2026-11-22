@@ -2,6 +2,7 @@ package cl.duoc.Bitacora.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import cl.duoc.Bitacora.data.local.entity.EntradaBitacoraEntity
@@ -10,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface EntradaBitacoraDao {
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertarEntrada(
         entrada: EntradaBitacoraEntity
     ): Long
