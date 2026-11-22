@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -69,8 +70,10 @@ fun EstudianteScreen(
     modifier: Modifier = Modifier,
     viewModel: EstudianteViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+
     LaunchedEffect(usuarioEstudiante) {
-        viewModel.cargarDatosEstudiante(usuarioEstudiante)
+        viewModel.cargarDatosEstudiante(usuarioEstudiante, context)
     }
 
     val bitacoras by viewModel.bitacorasDisponibles.collectAsState()
@@ -126,6 +129,20 @@ fun EstudianteScreen(
             }
         }
 
+        AnimatedVisibility(visible = viewModel.mensajeExito.isNotEmpty() && !mostrarFormulario) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Text(
+                    text = viewModel.mensajeExito,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
+
         // Vistas del Estudiante
         when (vistaActual) {
             VistaEstudiante.MENU -> {
@@ -178,7 +195,11 @@ fun EstudianteScreen(
                         viewModel = viewModel,
                         usuarioEstudiante = usuarioEstudiante,
                         onCancelar = { mostrarFormulario = false },
-                        onExito = { mostrarFormulario = false }
+                        onExito = { mostrarFormulario = false },
+                        onGuardarBorradorExitoso = {
+                            vistaActual = VistaEstudiante.BORRADORES
+                            mostrarFormulario = false
+                        }
                     )
                 }
 
@@ -253,7 +274,11 @@ fun EstudianteScreen(
                         viewModel = viewModel,
                         usuarioEstudiante = usuarioEstudiante,
                         onCancelar = { mostrarFormulario = false },
-                        onExito = { mostrarFormulario = false }
+                        onExito = { mostrarFormulario = false },
+                        onGuardarBorradorExitoso = {
+                            vistaActual = VistaEstudiante.BORRADORES
+                            mostrarFormulario = false
+                        }
                     )
                 }
 
@@ -457,7 +482,8 @@ fun FormularioEntradaCard(
     viewModel: EstudianteViewModel,
     usuarioEstudiante: Usuario,
     onCancelar: () -> Unit,
-    onExito: () -> Unit
+    onExito: () -> Unit,
+    onGuardarBorradorExitoso: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -531,7 +557,9 @@ fun FormularioEntradaCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
-                    onClick = { viewModel.guardarBorrador(usuarioEstudiante) },
+                    onClick = {
+                        viewModel.guardarBorrador(usuarioEstudiante, onExito = onGuardarBorradorExitoso)
+                    },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(10.dp)
                 ) {
@@ -540,10 +568,7 @@ fun FormularioEntradaCard(
 
                 Button(
                     onClick = {
-                        viewModel.guardarYEnviarEntrada(usuarioEstudiante)
-                        if (viewModel.mensajeError.isEmpty()) {
-                            onExito()
-                        }
+                        viewModel.guardarYEnviarEntrada(usuarioEstudiante, onExito = onExito)
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(10.dp)

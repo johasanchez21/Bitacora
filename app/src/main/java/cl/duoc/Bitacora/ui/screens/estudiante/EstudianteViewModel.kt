@@ -1,16 +1,19 @@
 package cl.duoc.Bitacora.ui.screens.estudiante
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cl.duoc.Bitacora.data.local.BitacoraDatabase
 import cl.duoc.Bitacora.data.repository.BitacoraRepository
 import cl.duoc.Bitacora.data.repository.CursoRepository
 import cl.duoc.Bitacora.data.repository.EntradaBitacoraRepository
 import cl.duoc.Bitacora.domain.model.Bitacora
 import cl.duoc.Bitacora.domain.model.Curso
 import cl.duoc.Bitacora.domain.model.EntradaBitacora
+import cl.duoc.Bitacora.domain.model.EstadoBitacora
 import cl.duoc.Bitacora.domain.model.EstadoEntrada
 import cl.duoc.Bitacora.domain.model.Usuario
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,7 +55,16 @@ class EstudianteViewModel(
     var mensajeExito by mutableStateOf("")
         private set
 
-    fun cargarDatosEstudiante(estudiante: Usuario) {
+    fun inicializarConContexto(context: Context) {
+        val db = BitacoraDatabase.obtenerInstancia(context)
+        entradaRepository.dao = db.entradaBitacoraDao()
+    }
+
+    fun cargarDatosEstudiante(estudiante: Usuario, context: Context? = null) {
+        if (context != null) {
+            inicializarConContexto(context)
+        }
+
         viewModelScope.launch {
             val listaCursos = mutableListOf<Curso>()
             estudiante.cursoIds.forEach { cId ->
@@ -92,11 +104,21 @@ class EstudianteViewModel(
         aprendizajeInput = entrada.aprendizaje
         dudasInput = entrada.dudas
         bitacoraSeleccionada = _bitacorasDisponibles.value.find { it.id == entrada.bitacoraId }
+            ?: Bitacora(
+                id = entrada.bitacoraId,
+                asignatura = "Bitácora",
+                mes = "Marzo",
+                anio = 2025,
+                cursoId = 1,
+                curso = "1° Medio A",
+                profesorId = 2,
+                estado = EstadoBitacora.PUBLICADA
+            )
         mensajeError = ""
         mensajeExito = "Borrador cargado para edición"
     }
 
-    fun guardarBorrador(estudiante: Usuario) {
+    fun guardarBorrador(estudiante: Usuario, onExito: (() -> Unit)? = null) {
         val bitacora = bitacoraSeleccionada
         if (bitacora == null) {
             mensajeError = "Debe seleccionar una bitácora asignada."
@@ -115,24 +137,33 @@ class EstudianteViewModel(
         )
 
         viewModelScope.launch {
-            val exito = if (borradorIdSeleccionado != null) {
-                entradaRepository.actualizarBorrador(nuevaEntrada)
-            } else {
-                val id = entradaRepository.guardarEntrada(nuevaEntrada)
-                borradorIdSeleccionado = id.toInt()
-                id > 0
-            }
+            try {
+                val exito: Boolean = if (borradorIdSeleccionado != null && borradorIdSeleccionado!! > 0) {
+                    entradaRepository.actualizarBorrador(nuevaEntrada)
+                } else {
+                    val nuevoId = entradaRepository.guardarEntrada(nuevaEntrada)
+                    if (nuevoId > 0) {
+                        borradorIdSeleccionado = nuevoId.toInt()
+                        true
+                    } else false
+                }
 
-            if (exito) {
-                mensajeExito = "Borrador guardado correctamente."
-                mensajeError = ""
-            } else {
-                mensajeError = "No se pudo guardar el borrador."
+                if (exito) {
+                    mensajeExito = "Borrador guardado correctamente."
+                    mensajeError = ""
+                    onExito?.invoke()
+                } else {
+                    mensajeError = "Ocurrió un error al guardar el borrador localmente."
+                    mensajeExito = ""
+                }
+            } catch (_: Exception) {
+                mensajeError = "Error al guardar el borrador en la base de datos."
+                mensajeExito = ""
             }
         }
     }
 
-    fun guardarYEnviarEntrada(estudiante: Usuario) {
+    fun guardarYEnviarEntrada(estudiante: Usuario, onExito: (() -> Unit)? = null) {
         val bitacora = bitacoraSeleccionada
         if (bitacora == null) {
             mensajeError = "Debe seleccionar una bitácora asignada a su curso."
@@ -156,7 +187,7 @@ class EstudianteViewModel(
         )
 
         viewModelScope.launch {
-            val exito = if (borradorIdSeleccionado != null) {
+            val exito = if (borradorIdSeleccionado != null && borradorIdSeleccionado!! > 0) {
                 entradaRepository.enviarBorrador(nuevaEntrada)
             } else {
                 val id = entradaRepository.guardarEntrada(nuevaEntrada)
@@ -164,10 +195,13 @@ class EstudianteViewModel(
             }
 
             if (exito) {
-                mensajeExito = "Entrada enviada al profesor correctamente."
                 limpiarFormulario()
+                mensajeExito = "Entrada enviada al profesor correctamente."
+                mensajeError = ""
+                onExito?.invoke()
             } else {
-                mensajeError = "Error al enviar la entrada."
+                mensajeError = "No se pudo conectar con el servidor. Tu entrada se mantiene guardada como borrador."
+                mensajeExito = ""
             }
         }
     }
