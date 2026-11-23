@@ -1,6 +1,7 @@
 package cl.duoc.Bitacora.ui.screens.profesor
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,8 +60,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.domain.model.Curso
 import cl.duoc.Bitacora.domain.model.Usuario
+import cl.duoc.Bitacora.ui.screens.estudiante.TarjetaProximoFeriado
 import coil3.compose.AsyncImage
-import androidx.compose.runtime.saveable.rememberSaveable
 
 enum class VistaProfesor {
     MENU,
@@ -82,15 +83,12 @@ fun ProfesorScreen(
     val bitacoras by viewModel.bitacoras.collectAsState()
     val entradasEnviadas by viewModel.entradasEnviadas.collectAsState()
 
-    var vistaActual by rememberSaveable { mutableStateOf(VistaProfesor.MENU) }
+    var vistaActual by remember { mutableStateOf(VistaProfesor.MENU) }
 
     var dropdownExpanded by remember { mutableStateOf(false) }
-    var comentarioProfesor by rememberSaveable { mutableStateOf("") }
-    var entradaAComentarId by rememberSaveable { mutableStateOf<Int?>(null) }
-    var cursoFiltroId by rememberSaveable { mutableStateOf<Int?>(null) }
-    val cursoFiltroSeleccionado = remember(cursos, cursoFiltroId) {
-        cursos.find { it.id == cursoFiltroId }
-    }
+    var comentarioProfesor by remember { mutableStateOf("") }
+    var entradaAComentarId by remember { mutableStateOf<Int?>(null) }
+    var cursoFiltroSeleccionado by remember { mutableStateOf<Curso?>(null) }
     var dropdownFiltroExpanded by remember { mutableStateOf(false) }
 
     Column(
@@ -140,6 +138,9 @@ fun ProfesorScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
+
+                // Tarjeta del Próximo Feriado (API Externa)
+                TarjetaProximoFeriado()
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
@@ -440,7 +441,7 @@ fun ProfesorScreen(
                             DropdownMenuItem(
                                 text = { Text("Todos los Cursos") },
                                 onClick = {
-                                    cursoFiltroId = null
+                                    cursoFiltroSeleccionado = null
                                     dropdownFiltroExpanded = false
                                 }
                             )
@@ -448,7 +449,7 @@ fun ProfesorScreen(
                                 DropdownMenuItem(
                                     text = { Text("${c.nombre} (${c.codigo})") },
                                     onClick = {
-                                        cursoFiltroId = c.id
+                                        cursoFiltroSeleccionado = c
                                         dropdownFiltroExpanded = false
                                     }
                                 )

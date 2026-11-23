@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PendingActions
@@ -82,6 +83,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cl.duoc.Bitacora.data.remote.external.FeriadoDto
+import cl.duoc.Bitacora.data.repository.FeriadosRepository
 import cl.duoc.Bitacora.domain.model.EstadoEntrada
 import cl.duoc.Bitacora.domain.model.Usuario
 import coil3.compose.AsyncImage
@@ -123,11 +126,6 @@ fun EstudianteScreen(
 
     val entradasCompletadas = remember(misEntradas) {
         misEntradas.filter { it.estado == EstadoEntrada.ENVIADA || it.estado == EstadoEntrada.REVISADA }
-    }
-
-    val bitacorasPendientes = remember(bitacoras, entradasCompletadas) {
-        val idsCompletadas = entradasCompletadas.map { it.bitacoraId }.toSet()
-        bitacoras.filter { it.id !in idsCompletadas }
     }
 
     Column(
@@ -179,11 +177,14 @@ fun EstudianteScreen(
                     fontWeight = FontWeight.Bold
                 )
 
+                // Tarjeta del Próximo Feriado (API Externa)
+                TarjetaProximoFeriado()
+
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
                         OpcionMenuCard(
                             titulo = "Entradas / Bitácoras Pendientes",
-                            subtitulo = "${bitacorasPendientes.size} bitácoras por realizar (Estado: Vacía o En borrador)",
+                            subtitulo = "${bitacoras.size} bitácoras por realizar (Estado: Vacía o En borrador)",
                             icono = Icons.Default.PendingActions,
                             colorContenedor = MaterialTheme.colorScheme.primaryContainer,
                             onClick = { vistaActual = VistaEstudiante.ENTRADAS_PENDIENTES }
@@ -235,12 +236,11 @@ fun EstudianteScreen(
                     )
                 }
 
-                if (bitacorasPendientes.isEmpty()) {
+                if (bitacoras.isEmpty()) {
                     MensajeVacio("No tienes bitácoras pendientes asignadas por tus profesores.")
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(bitacorasPendientes) { b ->
-                            // ... resto del código de la tarjeta sin cambios
+                        items(bitacoras) { b ->
                             val borradorAsociado = borradores.find { it.bitacoraId == b.id }
                             val estadoTexto = if (borradorAsociado != null) "En borrador" else "Vacía / Sin iniciar"
 
@@ -449,6 +449,100 @@ fun EstudianteScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TarjetaProximoFeriado(
+    modifier: Modifier = Modifier,
+    feriadosRepository: FeriadosRepository = remember { FeriadosRepository() }
+) {
+    var feriadoState by remember { mutableStateOf<FeriadoDto?>(null) }
+    var errorState by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        val result = feriadosRepository.obtenerProximoFeriado()
+        result.onSuccess { f ->
+            feriadoState = f
+            errorState = null
+        }.onFailure {
+            feriadoState = null
+            errorState = "Sin conexión a API externa"
+        }
+    }
+
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Event,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Próximo Feriado Académico (API Externa)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                feriadoState?.let { f ->
+                    if (f.inalienable) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.errorContainer
+                        ) {
+                            Text(
+                                text = "Irrenunciable",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            when {
+                feriadoState != null -> {
+                    val f = feriadoState!!
+                    Text(
+                        text = "${f.title} (${f.date})",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Tipo: ${f.type}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                errorState != null -> {
+                    Text(
+                        text = errorState!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                else -> {
+                    Text(
+                        text = "Cargando próximo feriado...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
