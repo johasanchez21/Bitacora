@@ -128,6 +128,11 @@ fun EstudianteScreen(
         misEntradas.filter { it.estado == EstadoEntrada.ENVIADA || it.estado == EstadoEntrada.REVISADA }
     }
 
+    val bitacorasPendientes = remember(bitacoras, entradasCompletadas) {
+        val idsCompletadas = entradasCompletadas.map { it.bitacoraId }.toSet()
+        bitacoras.filter { it.id !in idsCompletadas }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -184,7 +189,7 @@ fun EstudianteScreen(
                     item {
                         OpcionMenuCard(
                             titulo = "Entradas / Bitácoras Pendientes",
-                            subtitulo = "${bitacoras.size} bitácoras por realizar (Estado: Vacía o En borrador)",
+                            subtitulo = "${bitacorasPendientes.size} bitácoras por realizar (Estado: Vacía o En borrador)",
                             icono = Icons.Default.PendingActions,
                             colorContenedor = MaterialTheme.colorScheme.primaryContainer,
                             onClick = { vistaActual = VistaEstudiante.ENTRADAS_PENDIENTES }
@@ -236,11 +241,12 @@ fun EstudianteScreen(
                     )
                 }
 
-                if (bitacoras.isEmpty()) {
+                if (bitacorasPendientes.isEmpty()) {
                     MensajeVacio("No tienes bitácoras pendientes asignadas por tus profesores.")
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(bitacoras) { b ->
+                        items(bitacorasPendientes) { b ->
+                            // ... resto del código de la tarjeta sin cambios
                             val borradorAsociado = borradores.find { it.bitacoraId == b.id }
                             val estadoTexto = if (borradorAsociado != null) "En borrador" else "Vacía / Sin iniciar"
 
