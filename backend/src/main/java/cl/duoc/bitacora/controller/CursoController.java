@@ -32,6 +32,7 @@ public class CursoController {
 
     @PostMapping
     public ResponseEntity<?> registrarCurso(@Valid @RequestBody Curso curso) {
+        curso.setId(null);
         if (curso.getNombre() == null || curso.getNombre().isBlank()) {
             return ResponseEntity.badRequest().body("El nombre del curso es obligatorio");
         }

@@ -3,12 +3,16 @@ package cl.duoc.Bitacora.ui.screens.profesor
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -22,7 +26,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.ui.viewmodel.EntradasEnviadasViewModel
@@ -80,6 +86,7 @@ fun EntradasEnviadasScreen(
                     items = entradas,
                     key = { entrada -> entrada.id }
                 ) { entrada ->
+                    val listaFotos = entrada.obtenerListaFotos()
 
                     Card(
                         modifier = Modifier.fillMaxWidth()
@@ -125,21 +132,26 @@ fun EntradasEnviadasScreen(
                                 text = "Estado: Enviada"
                             )
 
-                            entrada.fotoUri?.let { rutaFoto ->
-
+                            if (listaFotos.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Fotografía adjunta:",
-                                    style = MaterialTheme.typography.titleSmall
+                                    text = "📷 Fotografías adjuntas (${listaFotos.size}):",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
                                 )
 
-                                AsyncImage(
-                                    model = Uri.parse(rutaFoto),
-                                    contentDescription = "Fotografía enviada por el estudiante",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(200.dp),
-                                    contentScale = ContentScale.Fit
-                                )
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(listaFotos) { rutaFoto ->
+                                        AsyncImage(
+                                            model = Uri.parse(rutaFoto),
+                                            contentDescription = "Fotografía enviada por el estudiante",
+                                            modifier = Modifier
+                                                .size(150.dp)
+                                                .clip(RoundedCornerShape(10.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                }
                             }
 
                             if (entradaSeleccionadaId == entrada.id) {

@@ -43,6 +43,7 @@ public class UsuarioController {
 
     @PostMapping
     public ResponseEntity<?> registrar(@Valid @RequestBody Usuario usuario) {
+        usuario.setId(null);
         if (usuarioRepository.findByCorreoIgnoreCase(usuario.getCorreo()).isPresent()) {
             return ResponseEntity.badRequest().body("El correo ya se encuentra registrado");
         }

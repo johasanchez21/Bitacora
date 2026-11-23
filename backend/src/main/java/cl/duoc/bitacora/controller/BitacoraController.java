@@ -33,6 +33,7 @@ public class BitacoraController {
 
     @PostMapping
     public ResponseEntity<?> crearBitacora(@Valid @RequestBody Bitacora bitacora) {
+        bitacora.setId(null);
         if (bitacora.getCursoId() == null || bitacora.getCursoId() <= 0) {
             return ResponseEntity.badRequest().body("La bitácora debe ser asignada a un curso en particular");
         }

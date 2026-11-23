@@ -35,6 +35,7 @@ public class EntradaBitacora {
     @Column(length = 1000)
     private String comentarioProfesor;
 
+    @Column(name = "foto_uri", length = 2000)
     private String fotoUri;
 
     public EntradaBitacora() {}

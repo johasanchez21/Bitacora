@@ -39,6 +39,7 @@ public class EntradaBitacoraController {
 
     @PostMapping
     public ResponseEntity<?> crearEntrada(@Valid @RequestBody EntradaBitacora entrada) {
+        entrada.setId(null);
         if (entrada.getEstado() == null) {
             entrada.setEstado(EstadoEntrada.BORRADOR);
         }

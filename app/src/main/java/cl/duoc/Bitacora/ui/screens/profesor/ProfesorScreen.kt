@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -402,11 +404,15 @@ fun ProfesorScreen(
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(bitacorasFiltradas) { b ->
+                                val entradasDeBitacora = remember(entradasEnviadas) {
+                                    entradasEnviadas.filter { it.bitacoraId == b.id }
+                                }
+
                                 ElevatedCard(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(14.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
+                                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -421,11 +427,33 @@ fun ProfesorScreen(
                                                 color = MaterialTheme.colorScheme.primaryContainer
                                             ) {
                                                 Text(
-                                                    text = "En Desarrollo",
+                                                    text = "${entradasDeBitacora.size} Entradas",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                                 )
+                                            }
+                                        }
+
+                                        if (entradasDeBitacora.isNotEmpty()) {
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                            Text("Fotografías y Entradas del Alumno:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                            entradasDeBitacora.forEach { e ->
+                                                val fotos = e.obtenerListaFotos()
+                                                if (fotos.isNotEmpty()) {
+                                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                        items(fotos) { ruta ->
+                                                            AsyncImage(
+                                                                model = Uri.parse(ruta),
+                                                                contentDescription = "Foto bitácora",
+                                                                modifier = Modifier
+                                                                    .size(120.dp)
+                                                                    .clip(RoundedCornerShape(8.dp)),
+                                                                contentScale = ContentScale.Crop
+                                                            )
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -457,6 +485,8 @@ fun ProfesorScreen(
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(entradasEnviadas) { entrada ->
+                            val listaFotos = entrada.obtenerListaFotos()
+
                             ElevatedCard(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(14.dp)
@@ -471,18 +501,22 @@ fun ProfesorScreen(
                                         Text("Dudas: ${entrada.dudas}", style = MaterialTheme.typography.bodyMedium)
                                     }
 
-                                    if (entrada.fotoUri != null) {
+                                    if (listaFotos.isNotEmpty()) {
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        Text("📷 Imagen adjunta por estudiante:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                        AsyncImage(
-                                            model = Uri.parse(entrada.fotoUri),
-                                            contentDescription = "Imagen enviada por alumno",
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(180.dp)
-                                                .clip(RoundedCornerShape(8.dp)),
-                                            contentScale = ContentScale.Crop
-                                        )
+                                        Text("📷 Fotografías adjuntas por el estudiante (${listaFotos.size}):", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            items(listaFotos) { ruta ->
+                                                AsyncImage(
+                                                    model = Uri.parse(ruta),
+                                                    contentDescription = "Imagen enviada por estudiante",
+                                                    modifier = Modifier
+                                                        .size(150.dp)
+                                                        .clip(RoundedCornerShape(10.dp)),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            }
+                                        }
                                     }
 
                                     Spacer(modifier = Modifier.height(8.dp))

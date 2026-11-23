@@ -46,7 +46,9 @@ class EntradaBitacoraRepository(
             var entradaServidor = entrada
 
             try {
-                val response = apiService.crearEntrada(entrada.toDto())
+                // Al enviar una entrada nueva al servidor, enviar DTO con id = null (id = 0)
+                val dtoEnviar = entrada.copy(id = 0).toDto()
+                val response = apiService.crearEntrada(dtoEnviar)
                 if (response.isSuccessful && response.body() != null) {
                     entradaServidor = response.body()!!.toDomain()
                     confirmadoPorServidor = true
@@ -101,7 +103,7 @@ class EntradaBitacoraRepository(
             }
         }
 
-        // Guardado BORRADOR local
+        // Guardado de BORRADOR local
         val currentDao = dao
         val idGenerado: Long = if (currentDao != null) {
             val entradaAInsertar = if (entrada.id > 0) entrada else entrada.copy(id = 0)
@@ -134,8 +136,23 @@ class EntradaBitacoraRepository(
         }
 
         try {
-            val dtoSinIdLocal = entrada.copy(id = idGenerado.toInt()).toDto()
-            apiService.crearEntrada(dtoSinIdLocal)
+            val dtoSinIdLocal = entrada.copy(id = 0).toDto()
+            val response = apiService.crearEntrada(dtoSinIdLocal)
+            if (response.isSuccessful && response.body() != null) {
+                val remota = response.body()!!.toDomain()
+                if (currentDao != null) {
+                    currentDao.insertarEntrada(remota.toEntity())
+                }
+                synchronized(entradasMemoria) {
+                    val idx = entradasMemoria.indexOfFirst { it.id == remota.id }
+                    if (idx != -1) {
+                        entradasMemoria[idx] = remota
+                    } else {
+                        entradasMemoria.add(remota)
+                    }
+                    notificarCambioMemoria()
+                }
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
         }
@@ -226,7 +243,14 @@ class EntradaBitacoraRepository(
         }
 
         try {
-            apiService.crearEntrada(entrada.toDto())
+            val dtoEnviar = entrada.copy(id = 0).toDto()
+            val response = apiService.crearEntrada(dtoEnviar)
+            if (response.isSuccessful && response.body() != null) {
+                val remota = response.body()!!.toDomain()
+                if (currentDao != null) {
+                    currentDao.insertarEntrada(remota.toEntity())
+                }
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
         }
@@ -241,14 +265,15 @@ class EntradaBitacoraRepository(
         val currentDao = dao
 
         try {
-            val response = apiService.crearEntrada(entradaEnviada.toDto())
+            val dtoEnviar = entradaEnviada.copy(id = 0).toDto()
+            val response = apiService.crearEntrada(dtoEnviar)
             if (response.isSuccessful && response.body() != null) {
                 val entradaFinal = response.body()!!.toDomain()
                 if (currentDao != null) {
                     currentDao.insertarEntrada(entradaFinal.toEntity())
                 }
                 synchronized(entradasMemoria) {
-                    val idx = entradasMemoria.indexOfFirst { it.id == entradaFinal.id }
+                    val idx = entradasMemoria.indexOfFirst { it.id == entradaFinal.id || it.id == entrada.id }
                     if (idx != -1) {
                         entradasMemoria[idx] = entradaFinal
                     } else {
