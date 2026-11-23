@@ -14,7 +14,10 @@ import cl.duoc.Bitacora.domain.model.RolUsuario
 import cl.duoc.Bitacora.domain.model.Usuario
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 
 class BitacoraRepository(
     private val bitacoraDao: BitacoraDao? = null,
@@ -22,7 +25,7 @@ class BitacoraRepository(
 ) {
 
     companion object {
-        private val bitacorasMemoria = mutableListOf(
+        private val bitacorasPorDefecto = listOf(
             Bitacora(
                 id = 1,
                 asignatura = "Matemáticas",
@@ -35,6 +38,9 @@ class BitacoraRepository(
             )
         )
 
+        private val bitacorasMemoria = mutableListOf<Bitacora>().apply { addAll(bitacorasPorDefecto) }
+        private val _bitacorasFlow = MutableStateFlow<List<Bitacora>>(bitacorasMemoria.toList())
+
         @Volatile
         private var INSTANCE: BitacoraRepository? = null
 
@@ -42,6 +48,30 @@ class BitacoraRepository(
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: BitacoraRepository(bitacoraDao).also { INSTANCE = it }
             }
+        }
+
+        private fun emitirCambio() {
+            _bitacorasFlow.value = synchronized(bitacorasMemoria) { bitacorasMemoria.toList() }
+        }
+    }
+
+    suspend fun refrescarBitacorasDesdeServidor() {
+        try {
+            val response = apiService.obtenerTodasLasBitacoras()
+            if (response.isSuccessful && response.body() != null) {
+                val listaRemota = response.body()!!.map { it.toDomain() }
+                synchronized(bitacorasMemoria) {
+                    bitacorasMemoria.clear()
+                    if (listaRemota.isNotEmpty()) {
+                        bitacorasMemoria.addAll(listaRemota)
+                    } else {
+                        bitacorasMemoria.addAll(bitacorasPorDefecto)
+                    }
+                }
+                emitirCambio()
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
         }
     }
 
@@ -69,13 +99,17 @@ class BitacoraRepository(
         )
 
         try {
-            val response = apiService.crearBitacora(bitacoraAAsignar.toDto())
+            val response = apiService.crearBitacora(bitacoraAAsignar.copy(id = 0).toDto())
             if (response.isSuccessful && response.body() != null) {
                 val b = response.body()!!.toDomain()
-                synchronized(bitacorasMemoria) { bitacorasMemoria.add(b) }
+                synchronized(bitacorasMemoria) {
+                    val idx = bitacorasMemoria.indexOfFirst { it.id == b.id }
+                    if (idx != -1) bitacorasMemoria[idx] = b else bitacorasMemoria.add(b)
+                }
                 if (bitacoraDao != null) {
                     bitacoraDao.insertarBitacora(b.toEntity())
                 }
+                emitirCambio()
                 return Result.success(b.id.toLong())
             }
         } catch (e: Exception) {
@@ -88,18 +122,23 @@ class BitacoraRepository(
         if (bitacoraDao != null) {
             bitacoraDao.insertarBitacora(bitacoraGuardada.toEntity())
         }
+        emitirCambio()
         return Result.success(nuevoId.toLong())
     }
 
     suspend fun guardarBitacora(bitacora: Bitacora): Long {
         try {
-            val response = apiService.crearBitacora(bitacora.toDto())
+            val response = apiService.crearBitacora(bitacora.copy(id = 0).toDto())
             if (response.isSuccessful && response.body() != null) {
                 val b = response.body()!!.toDomain()
-                synchronized(bitacorasMemoria) { bitacorasMemoria.add(b) }
+                synchronized(bitacorasMemoria) {
+                    val idx = bitacorasMemoria.indexOfFirst { it.id == b.id }
+                    if (idx != -1) bitacorasMemoria[idx] = b else bitacorasMemoria.add(b)
+                }
                 if (bitacoraDao != null) {
                     bitacoraDao.insertarBitacora(b.toEntity())
                 }
+                emitirCambio()
                 return b.id.toLong()
             }
         } catch (e: Exception) {
@@ -112,19 +151,12 @@ class BitacoraRepository(
         if (bitacoraDao != null) {
             bitacoraDao.insertarBitacora(b.toEntity())
         }
+        emitirCambio()
         return nuevoId.toLong()
     }
 
     suspend fun obtenerBitacoraPorIdRoom(id: Int): Bitacora? {
-        try {
-            val response = apiService.obtenerTodasLasBitacoras()
-            if (response.isSuccessful && response.body() != null) {
-                val encontrada = response.body()!!.map { it.toDomain() }.find { it.id == id }
-                if (encontrada != null) return encontrada
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-        }
+        refrescarBitacorasDesdeServidor()
         if (bitacoraDao != null) {
             val entity = bitacoraDao.obtenerBitacoraPorId(id)
             if (entity != null) return entity.toModel()
@@ -132,52 +164,20 @@ class BitacoraRepository(
         return synchronized(bitacorasMemoria) { bitacorasMemoria.find { it.id == id } }
     }
 
-    fun obtenerTodasLasBitacorasRoom(): Flow<List<Bitacora>> = flow {
-        try {
-            val response = apiService.obtenerTodasLasBitacoras()
-            if (response.isSuccessful && response.body() != null) {
-                val lista = response.body()!!.map { it.toDomain() }
-                synchronized(bitacorasMemoria) {
-                    bitacorasMemoria.clear()
-                    bitacorasMemoria.addAll(lista)
-                }
-                emit(lista)
-                return@flow
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-        }
-        if (bitacoraDao != null) {
-            bitacoraDao.obtenerTodasLasBitacoras().collect { entidades ->
-                emit(entidades.map { it.toModel() })
-            }
-        } else {
-            emit(synchronized(bitacorasMemoria) { bitacorasMemoria.toList() })
-        }
+    fun obtenerTodasLasBitacorasRoom(): Flow<List<Bitacora>> = _bitacorasFlow.asStateFlow().onStart {
+        refrescarBitacorasDesdeServidor()
     }
 
-    fun obtenerBitacorasPublicadasRoom(curso: String): Flow<List<Bitacora>> = flow {
-        try {
-            val response = apiService.obtenerTodasLasBitacoras()
-            if (response.isSuccessful && response.body() != null) {
-                val filtradas = response.body()!!
-                    .map { it.toDomain() }
-                    .filter { it.curso == curso && it.estado == EstadoBitacora.PUBLICADA }
-                emit(filtradas)
-                return@flow
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
+    fun obtenerBitacorasPublicadasRoom(curso: String): Flow<List<Bitacora>> =
+        obtenerTodasLasBitacorasRoom().map { lista ->
+            lista.filter { it.curso == curso && it.estado == EstadoBitacora.PUBLICADA }
         }
-        emit(synchronized(bitacorasMemoria) {
-            bitacorasMemoria.filter { it.curso == curso && it.estado == EstadoBitacora.PUBLICADA }
-        })
-    }
 
     suspend fun publicarBitacora(id: Int): Boolean {
         try {
             val response = apiService.publicarBitacora(id.toLong())
             if (response.isSuccessful && response.body() != null) {
+                refrescarBitacorasDesdeServidor()
                 return true
             }
         } catch (e: Exception) {
@@ -187,6 +187,7 @@ class BitacoraRepository(
             val idx = bitacorasMemoria.indexOfFirst { it.id == id }
             if (idx != -1 && bitacorasMemoria[idx].estado == EstadoBitacora.BORRADOR) {
                 bitacorasMemoria[idx] = bitacorasMemoria[idx].copy(estado = EstadoBitacora.PUBLICADA)
+                emitirCambio()
                 return true
             }
         }

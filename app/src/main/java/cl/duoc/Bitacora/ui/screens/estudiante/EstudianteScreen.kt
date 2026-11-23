@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
@@ -45,6 +48,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -53,15 +58,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,6 +86,10 @@ import cl.duoc.Bitacora.domain.model.EstadoEntrada
 import cl.duoc.Bitacora.domain.model.Usuario
 import coil3.compose.AsyncImage
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 enum class VistaEstudiante {
     MENU,
@@ -113,9 +125,15 @@ fun EstudianteScreen(
         misEntradas.filter { it.estado == EstadoEntrada.ENVIADA || it.estado == EstadoEntrada.REVISADA }
     }
 
+    val bitacorasPendientes = remember(bitacoras, entradasCompletadas) {
+        val idsCompletadas = entradasCompletadas.map { it.bitacoraId }.toSet()
+        bitacoras.filter { it.id !in idsCompletadas }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
+            .imePadding()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -165,7 +183,7 @@ fun EstudianteScreen(
                     item {
                         OpcionMenuCard(
                             titulo = "Entradas / Bitácoras Pendientes",
-                            subtitulo = "${bitacoras.size} bitácoras por realizar (Estado: Vacía o En borrador)",
+                            subtitulo = "${bitacorasPendientes.size} bitácoras por realizar (Estado: Vacía o En borrador)",
                             icono = Icons.Default.PendingActions,
                             colorContenedor = MaterialTheme.colorScheme.primaryContainer,
                             onClick = { vistaActual = VistaEstudiante.ENTRADAS_PENDIENTES }
@@ -217,11 +235,12 @@ fun EstudianteScreen(
                     )
                 }
 
-                if (bitacoras.isEmpty()) {
+                if (bitacorasPendientes.isEmpty()) {
                     MensajeVacio("No tienes bitácoras pendientes asignadas por tus profesores.")
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(bitacoras) { b ->
+                        items(bitacorasPendientes) { b ->
+                            // ... resto del código de la tarjeta sin cambios
                             val borradorAsociado = borradores.find { it.bitacoraId == b.id }
                             val estadoTexto = if (borradorAsociado != null) "En borrador" else "Vacía / Sin iniciar"
 
@@ -679,6 +698,7 @@ fun crearArchivoTemporalCamara(context: Context): Uri? {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormularioEntradaCard(
     viewModel: EstudianteViewModel,
@@ -690,10 +710,49 @@ fun FormularioEntradaCard(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
+    var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
+
+    val datePickerState = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis <= System.currentTimeMillis()
+            }
+        }
+    )
+
+    if (mostrarDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { mostrarDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                                timeZone = TimeZone.getTimeZone("UTC")
+                            }
+                            val fechaFormateada = formatter.format(Date(millis))
+                            viewModel.actualizarFecha(fechaFormateada)
+                        }
+                        mostrarDatePicker = false
+                    }
+                ) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDatePicker = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 560.dp),
+            .heightIn(max = 580.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -733,35 +792,104 @@ fun FormularioEntradaCard(
                 }
             }
 
-            OutlinedTextField(
-                value = viewModel.fechaInput,
-                onValueChange = { viewModel.actualizarFecha(it) },
-                label = { Text("Fecha (YYYY-MM-DD)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            // Campo de fecha de solo lectura con calendario nativo y bloqueo de fechas futuras
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = viewModel.fechaInput,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Fecha de Entrada (YYYY-MM-DD)") },
+                    trailingIcon = {
+                        IconButton(onClick = { mostrarDatePicker = true }) {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = "Seleccionar fecha"
+                            )
+                        }
+                    },
+                    isError = viewModel.errorFecha.isNotEmpty(),
+                    supportingText = {
+                        if (viewModel.errorFecha.isNotEmpty()) {
+                            Text(viewModel.errorFecha, color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { mostrarDatePicker = true }
+                )
+            }
+
+            // Actividad realizada (min 10 caracteres con letras, max 500)
             OutlinedTextField(
                 value = viewModel.actividadInput,
                 onValueChange = { viewModel.actualizarActividad(it) },
-                label = { Text("Actividad Realizada") },
+                label = { Text("Actividad Realizada (mínimo 10 caracteres)") },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 2
+                minLines = 2,
+                isError = viewModel.errorActividad.isNotEmpty(),
+                supportingText = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        if (viewModel.errorActividad.isNotEmpty()) {
+                            Text(viewModel.errorActividad, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                        Text("${viewModel.actividadInput.length}/500")
+                    }
+                }
             )
 
+            // Aprendizaje obtenido (min 10 caracteres con letras, max 500)
             OutlinedTextField(
                 value = viewModel.aprendizajeInput,
                 onValueChange = { viewModel.actualizarAprendizaje(it) },
-                label = { Text("¿Qué aprendiste hoy?") },
+                label = { Text("¿Qué aprendiste hoy? (mínimo 10 caracteres)") },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 2
+                minLines = 2,
+                isError = viewModel.errorAprendizaje.isNotEmpty(),
+                supportingText = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        if (viewModel.errorAprendizaje.isNotEmpty()) {
+                            Text(viewModel.errorAprendizaje, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                        Text("${viewModel.aprendizajeInput.length}/500")
+                    }
+                }
             )
 
+            // Dudas o consultas (opcional, si tiene texto 5-300 caracteres con letras)
             OutlinedTextField(
                 value = viewModel.dudasInput,
                 onValueChange = { viewModel.actualizarDudas(it) },
                 label = { Text("Dudas o consultas (Opcional)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 1,
+                isError = viewModel.errorDudas.isNotEmpty(),
+                supportingText = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        if (viewModel.errorDudas.isNotEmpty()) {
+                            Text(viewModel.errorDudas, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                        Text("${viewModel.dudasInput.length}/300")
+                    }
+                }
             )
 
             // Selector de Imagen (Galería o Cámara) con permisos y límite de 3

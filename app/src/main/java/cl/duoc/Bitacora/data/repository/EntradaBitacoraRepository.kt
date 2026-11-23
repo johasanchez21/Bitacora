@@ -306,6 +306,27 @@ class EntradaBitacoraRepository(
 
     fun obtenerEntradasEnviadas(): Flow<List<EntradaBitacora>> = flow {
         val currentDao = dao
+
+        try {
+            val response = apiService.obtenerEntradasEnviadas()
+            if (response.isSuccessful && response.body() != null) {
+                val remotas = response.body()!!.map { it.toDomain() }
+                if (currentDao != null) {
+                    remotas.forEach { currentDao.insertarEntrada(it.toEntity()) }
+                }
+                synchronized(entradasMemoria) {
+                    for (r in remotas) {
+                        val idx = entradasMemoria.indexOfFirst { it.id == r.id }
+                        if (idx != -1) entradasMemoria[idx] = r else entradasMemoria.add(r)
+                    }
+                    notificarCambioMemoria()
+                }
+                emit(remotas.filter { it.estado == EstadoEntrada.ENVIADA })
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+        }
+
         if (currentDao != null) {
             currentDao.obtenerEntradasEnviadas().collect { lista ->
                 emit(lista.map { it.toModel() })
@@ -314,15 +335,6 @@ class EntradaBitacoraRepository(
             _entradasMemoriaFlow.collect { list ->
                 emit(list.filter { it.estado == EstadoEntrada.ENVIADA })
             }
-        }
-
-        try {
-            val response = apiService.obtenerEntradasEnviadas()
-            if (response.isSuccessful && response.body() != null) {
-                emit(response.body()!!.map { it.toDomain() })
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
         }
     }
 

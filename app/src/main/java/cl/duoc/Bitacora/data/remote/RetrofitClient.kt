@@ -10,19 +10,31 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
 
     private fun esEmulador(): Boolean {
-        return (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
-                || Build.FINGERPRINT.startsWith("generic")
-                || Build.FINGERPRINT.startsWith("unknown")
-                || Build.HARDWARE.contains("goldfish")
-                || Build.HARDWARE.contains("ranchu")
-                || Build.MODEL.contains("google_sdk")
-                || Build.MODEL.contains("Emulator")
-                || Build.MODEL.contains("Android SDK built for x86")
-                || Build.MANUFACTURER.contains("Genymotion")
-                || Build.PRODUCT.contains("sdk_gphone")
-                || Build.PRODUCT.contains("vbox86p")
-                || Build.PRODUCT.contains("emulator")
-                || Build.PRODUCT.contains("simulator")
+        return try {
+            val brand = Build.BRAND ?: ""
+            val device = Build.DEVICE ?: ""
+            val fingerprint = Build.FINGERPRINT ?: ""
+            val hardware = Build.HARDWARE ?: ""
+            val model = Build.MODEL ?: ""
+            val manufacturer = Build.MANUFACTURER ?: ""
+            val product = Build.PRODUCT ?: ""
+
+            (brand.startsWith("generic") && device.startsWith("generic"))
+                    || fingerprint.startsWith("generic")
+                    || fingerprint.startsWith("unknown")
+                    || hardware.contains("goldfish")
+                    || hardware.contains("ranchu")
+                    || model.contains("google_sdk")
+                    || model.contains("Emulator")
+                    || model.contains("Android SDK built for x86")
+                    || manufacturer.contains("Genymotion")
+                    || product.contains("sdk_gphone")
+                    || product.contains("vbox86p")
+                    || product.contains("emulator")
+                    || product.contains("simulator")
+        } catch (e: Throwable) {
+            false
+        }
     }
 
     private val BASE_URL: String = if (esEmulador()) {

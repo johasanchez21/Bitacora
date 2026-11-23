@@ -1,7 +1,6 @@
 package cl.duoc.Bitacora.ui.screens.profesor
 
 import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,6 +60,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.Bitacora.domain.model.Curso
 import cl.duoc.Bitacora.domain.model.Usuario
 import coil3.compose.AsyncImage
+import androidx.compose.runtime.saveable.rememberSaveable
 
 enum class VistaProfesor {
     MENU,
@@ -81,17 +82,21 @@ fun ProfesorScreen(
     val bitacoras by viewModel.bitacoras.collectAsState()
     val entradasEnviadas by viewModel.entradasEnviadas.collectAsState()
 
-    var vistaActual by remember { mutableStateOf(VistaProfesor.MENU) }
+    var vistaActual by rememberSaveable { mutableStateOf(VistaProfesor.MENU) }
 
     var dropdownExpanded by remember { mutableStateOf(false) }
-    var comentarioProfesor by remember { mutableStateOf("") }
-    var entradaAComentarId by remember { mutableStateOf<Int?>(null) }
-    var cursoFiltroSeleccionado by remember { mutableStateOf<Curso?>(null) }
+    var comentarioProfesor by rememberSaveable { mutableStateOf("") }
+    var entradaAComentarId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var cursoFiltroId by rememberSaveable { mutableStateOf<Int?>(null) }
+    val cursoFiltroSeleccionado = remember(cursos, cursoFiltroId) {
+        cursos.find { it.id == cursoFiltroId }
+    }
     var dropdownFiltroExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
+            .imePadding()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -183,70 +188,137 @@ fun ProfesorScreen(
                 )
 
                 val scrollState = rememberScrollState()
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    shape = RoundedCornerShape(16.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .verticalScroll(scrollState),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text(
-                            text = "Registrar Nuevo Curso (Regla: Máx. 2 por año)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        OutlinedTextField(
-                            value = viewModel.nombreCurso,
-                            onValueChange = { viewModel.actualizarNombreCurso(it) },
-                            label = { Text("Nombre del Curso (ej. 1° Medio A)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-
-                        OutlinedTextField(
-                            value = viewModel.codigoCurso,
-                            onValueChange = { viewModel.actualizarCodigoCurso(it) },
-                            label = { Text("Código (ej. 1MA)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = viewModel.anioCurso,
-                                onValueChange = { viewModel.actualizarAnioCurso(it) },
-                                label = { Text("Año") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                            OutlinedTextField(
-                                value = viewModel.semestreCurso,
-                                onValueChange = { viewModel.actualizarSemestreCurso(it) },
-                                label = { Text("Semestre") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                        }
-
-                        if (viewModel.errorCurso.isNotEmpty()) {
-                            Text(viewModel.errorCurso, color = MaterialTheme.colorScheme.error)
-                        }
-
-                        if (viewModel.exitoCurso.isNotEmpty()) {
-                            Text(viewModel.exitoCurso, color = MaterialTheme.colorScheme.primary)
-                        }
-
-                        Button(
-                            onClick = { viewModel.registrarCurso() },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Guardar y Registrar Curso")
+                            Text(
+                                text = "Registrar Nuevo Curso (Regla: Máx. 2 por año)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            OutlinedTextField(
+                                value = viewModel.nombreCurso,
+                                onValueChange = { viewModel.actualizarNombreCurso(it) },
+                                label = { Text("Nombre del Curso (ej. 1° Medio A)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = viewModel.codigoCurso,
+                                onValueChange = { viewModel.actualizarCodigoCurso(it) },
+                                label = { Text("Código (ej. 1MA)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = viewModel.anioCurso,
+                                    onValueChange = { viewModel.actualizarAnioCurso(it) },
+                                    label = { Text("Año") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                OutlinedTextField(
+                                    value = viewModel.semestreCurso,
+                                    onValueChange = { viewModel.actualizarSemestreCurso(it) },
+                                    label = { Text("Semestre") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                            }
+
+                            if (viewModel.errorCurso.isNotEmpty()) {
+                                Text(viewModel.errorCurso, color = MaterialTheme.colorScheme.error)
+                            }
+
+                            if (viewModel.exitoCurso.isNotEmpty()) {
+                                Text(viewModel.exitoCurso, color = MaterialTheme.colorScheme.primary)
+                            }
+
+                            Button(
+                                onClick = { viewModel.registrarCurso() },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Guardar y Registrar Curso")
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "Cursos Registrados (${cursos.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    if (cursos.isEmpty()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ) {
+                            Text(
+                                text = "Aún no hay cursos registrados en el sistema.",
+                                modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            cursos.forEach { c ->
+                                ElevatedCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    text = c.nombre,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    text = "Código: ${c.codigo} • Semestre ${c.semestre}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Surface(
+                                                shape = RoundedCornerShape(50),
+                                                color = MaterialTheme.colorScheme.primaryContainer
+                                            ) {
+                                                Text(
+                                                    text = "Año ${c.anio}",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -368,7 +440,7 @@ fun ProfesorScreen(
                             DropdownMenuItem(
                                 text = { Text("Todos los Cursos") },
                                 onClick = {
-                                    cursoFiltroSeleccionado = null
+                                    cursoFiltroId = null
                                     dropdownFiltroExpanded = false
                                 }
                             )
@@ -376,7 +448,7 @@ fun ProfesorScreen(
                                 DropdownMenuItem(
                                     text = { Text("${c.nombre} (${c.codigo})") },
                                     onClick = {
-                                        cursoFiltroSeleccionado = c
+                                        cursoFiltroId = c.id
                                         dropdownFiltroExpanded = false
                                     }
                                 )

@@ -15,7 +15,7 @@ class EntradaBitacoraValidatorTest {
 
     @Test
     fun `validarFecha con fecha valida retorna vacio`() {
-        val res = EntradaBitacoraValidator.validarFecha("30/03/2025")
+        val res = EntradaBitacoraValidator.validarFecha("2025-03-30")
         assertTrue(res.isEmpty())
     }
 
@@ -32,7 +32,20 @@ class EntradaBitacoraValidatorTest {
     }
 
     @Test
-    fun `validarActividad con 10 o mas caracteres retorna vacio`() {
+    fun `validarActividad sin letras retorna error`() {
+        val res = EntradaBitacoraValidator.validarActividad("1234567890123")
+        assertEquals("La actividad debe contener al menos una letra", res)
+    }
+
+    @Test
+    fun `validarActividad con mas de 500 caracteres retorna error`() {
+        val textoLargo = "a".repeat(501)
+        val res = EntradaBitacoraValidator.validarActividad(textoLargo)
+        assertEquals("La actividad no puede superar los 500 caracteres", res)
+    }
+
+    @Test
+    fun `validarActividad valida retorna vacio`() {
         val res = EntradaBitacoraValidator.validarActividad("Resolución de guía de álgebra")
         assertTrue(res.isEmpty())
     }
@@ -50,16 +63,29 @@ class EntradaBitacoraValidatorTest {
     }
 
     @Test
-    fun `validarAprendizaje con 10 o mas caracteres retorna vacio`() {
+    fun `validarAprendizaje con mas de 500 caracteres retorna error`() {
+        val textoLargo = "a".repeat(501)
+        val res = EntradaBitacoraValidator.validarAprendizaje(textoLargo)
+        assertEquals("El aprendizaje no puede superar los 500 caracteres", res)
+    }
+
+    @Test
+    fun `validarAprendizaje valido retorna vacio`() {
         val res = EntradaBitacoraValidator.validarAprendizaje("Aprendí a despejar ecuaciones de primer grado")
         assertTrue(res.isEmpty())
     }
 
     @Test
-    fun `validarDudas con mas de 500 caracteres retorna error`() {
-        val textoLargo = "a".repeat(501)
+    fun `validarDudas con mas de 300 caracteres retorna error`() {
+        val textoLargo = "a".repeat(301)
         val res = EntradaBitacoraValidator.validarDudas(textoLargo)
-        assertEquals("Las dudas no pueden superar los 500 caracteres", res)
+        assertEquals("Las dudas no pueden superar los 300 caracteres", res)
+    }
+
+    @Test
+    fun `validarDudas con menos de 5 caracteres si no esta vacio retorna error`() {
+        val res = EntradaBitacoraValidator.validarDudas("Hola")
+        assertEquals("Las dudas deben tener al menos 5 caracteres", res)
     }
 
     @Test

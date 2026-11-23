@@ -18,10 +18,12 @@ import cl.duoc.Bitacora.domain.model.EntradaBitacora
 import cl.duoc.Bitacora.domain.model.EstadoBitacora
 import cl.duoc.Bitacora.domain.model.EstadoEntrada
 import cl.duoc.Bitacora.domain.model.Usuario
+import cl.duoc.Bitacora.domain.validation.EntradaBitacoraValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class EstudianteViewModel(
     private val cursoRepository: CursoRepository = CursoRepository.obtenerInstancia(),
@@ -41,7 +43,7 @@ class EstudianteViewModel(
     // Formulario Crear / Editar Entrada
     var borradorIdSeleccionado by mutableStateOf<Int?>(null)
         private set
-    var fechaInput by mutableStateOf("2025-03-30")
+    var fechaInput by mutableStateOf(LocalDate.now().toString())
         private set
     var actividadInput by mutableStateOf("")
         private set
@@ -54,6 +56,15 @@ class EstudianteViewModel(
     var guardandoFoto by mutableStateOf(false)
         private set
     var errorFoto by mutableStateOf<String?>(null)
+        private set
+
+    var errorFecha by mutableStateOf("")
+        private set
+    var errorActividad by mutableStateOf("")
+        private set
+    var errorAprendizaje by mutableStateOf("")
+        private set
+    var errorDudas by mutableStateOf("")
         private set
 
     var bitacoraSeleccionada by mutableStateOf<Bitacora?>(null)
@@ -95,11 +106,45 @@ class EstudianteViewModel(
         }
     }
 
-    fun actualizarFecha(v: String) { fechaInput = v; mensajeError = ""; mensajeExito = "" }
-    fun actualizarActividad(v: String) { actividadInput = v; mensajeError = ""; mensajeExito = "" }
-    fun actualizarAprendizaje(v: String) { aprendizajeInput = v; mensajeError = ""; mensajeExito = "" }
-    fun actualizarDudas(v: String) { dudasInput = v; mensajeError = ""; mensajeExito = "" }
-    fun seleccionarBitacora(b: Bitacora) { bitacoraSeleccionada = b; mensajeError = ""; mensajeExito = "" }
+    fun actualizarFecha(v: String) {
+        fechaInput = v
+        errorFecha = ""
+        mensajeError = ""
+        mensajeExito = ""
+    }
+
+    fun actualizarActividad(v: String) {
+        if (v.length <= 500) {
+            actividadInput = v
+            errorActividad = ""
+            mensajeError = ""
+            mensajeExito = ""
+        }
+    }
+
+    fun actualizarAprendizaje(v: String) {
+        if (v.length <= 500) {
+            aprendizajeInput = v
+            errorAprendizaje = ""
+            mensajeError = ""
+            mensajeExito = ""
+        }
+    }
+
+    fun actualizarDudas(v: String) {
+        if (v.length <= 300) {
+            dudasInput = v
+            errorDudas = ""
+            mensajeError = ""
+            mensajeExito = ""
+        }
+    }
+
+    fun seleccionarBitacora(b: Bitacora) {
+        bitacoraSeleccionada = b
+        mensajeError = ""
+        mensajeExito = ""
+    }
 
     fun agregarFotografia(uriSeleccionada: Uri, context: Context) {
         if (guardandoFoto) return
@@ -158,6 +203,7 @@ class EstudianteViewModel(
                 profesorId = 2,
                 estado = EstadoBitacora.PUBLICADA
             )
+        limpiarErroresCampos()
         mensajeError = ""
         mensajeExito = "Borrador cargado para edición"
     }
@@ -175,6 +221,22 @@ class EstudianteViewModel(
                 profesorId = 2,
                 estado = EstadoBitacora.PUBLICADA
             )
+    }
+
+    fun validarFormulario(): Boolean {
+        errorFecha = EntradaBitacoraValidator.validarFecha(fechaInput)
+        errorActividad = EntradaBitacoraValidator.validarActividad(actividadInput)
+        errorAprendizaje = EntradaBitacoraValidator.validarAprendizaje(aprendizajeInput)
+        errorDudas = EntradaBitacoraValidator.validarDudas(dudasInput)
+
+        return errorFecha.isEmpty() && errorActividad.isEmpty() && errorAprendizaje.isEmpty() && errorDudas.isEmpty()
+    }
+
+    fun limpiarErroresCampos() {
+        errorFecha = ""
+        errorActividad = ""
+        errorAprendizaje = ""
+        errorDudas = ""
     }
 
     fun guardarBorrador(estudiante: Usuario, onExito: (() -> Unit)? = null) {
@@ -223,12 +285,12 @@ class EstudianteViewModel(
     }
 
     fun guardarYEnviarEntrada(estudiante: Usuario, onExito: (() -> Unit)? = null) {
-        val bitacora = obtenerBitacoraValida(estudiante)
-
-        if (actividadInput.isBlank() || aprendizajeInput.isBlank()) {
-            mensajeError = "Actividad y aprendizaje son campos requeridos."
+        if (!validarFormulario()) {
+            mensajeError = "Por favor corrige los errores indicados en los campos."
             return
         }
+
+        val bitacora = obtenerBitacoraValida(estudiante)
 
         val fotoUriString = if (fotosUrisInput.isNotEmpty()) fotosUrisInput.joinToString(";") else null
         val nuevaEntrada = EntradaBitacora(
@@ -271,12 +333,14 @@ class EstudianteViewModel(
 
     fun limpiarFormulario() {
         borradorIdSeleccionado = null
+        fechaInput = LocalDate.now().toString()
         actividadInput = ""
         aprendizajeInput = ""
         dudasInput = ""
         fotosUrisInput = emptyList()
         errorFoto = null
         guardandoFoto = false
+        limpiarErroresCampos()
         mensajeError = ""
         mensajeExito = ""
     }

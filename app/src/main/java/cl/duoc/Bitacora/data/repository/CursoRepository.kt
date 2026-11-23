@@ -8,7 +8,9 @@ import cl.duoc.Bitacora.data.remote.mapper.toDto
 import cl.duoc.Bitacora.domain.model.Curso
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.onStart
 
 class CursoRepository(
     private val cursoDao: CursoDao? = null,
@@ -16,10 +18,13 @@ class CursoRepository(
 ) {
 
     companion object {
-        private val cursosMemoria = mutableListOf(
+        private val cursosPorDefecto = listOf(
             Curso(id = 1, nombre = "1° Medio A", codigo = "1MA", anio = 2025, semestre = 1),
             Curso(id = 2, nombre = "1° Medio B", codigo = "1MB", anio = 2025, semestre = 1)
         )
+
+        private val cursosMemoria = mutableListOf<Curso>().apply { addAll(cursosPorDefecto) }
+        private val _cursosFlow = MutableStateFlow<List<Curso>>(cursosMemoria.toList())
 
         @Volatile
         private var INSTANCE: CursoRepository? = null
@@ -29,6 +34,28 @@ class CursoRepository(
                 INSTANCE ?: CursoRepository(cursoDao).also { INSTANCE = it }
             }
         }
+
+        private fun emitirCambio() {
+            _cursosFlow.value = synchronized(cursosMemoria) { cursosMemoria.toList() }
+        }
+    }
+
+    suspend fun refrescarCursosDesdeServidor() {
+        try {
+            val response = apiService.obtenerCursos()
+            if (response.isSuccessful && response.body() != null) {
+                val listaRemota = response.body()!!.map { it.toDomain() }
+                if (listaRemota.isNotEmpty()) {
+                    synchronized(cursosMemoria) {
+                        cursosMemoria.clear()
+                        cursosMemoria.addAll(listaRemota)
+                    }
+                    emitirCambio()
+                }
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+        }
     }
 
     suspend fun registrarCurso(curso: Curso): Result<Long> {
@@ -36,17 +63,6 @@ class CursoRepository(
             return Result.failure(
                 IllegalArgumentException("El nombre y código del curso son obligatorios.")
             )
-        }
-
-        try {
-            val response = apiService.registrarCurso(curso.toDto())
-            if (response.isSuccessful && response.body() != null) {
-                val cursoGuardado = response.body()!!.toDomain()
-                synchronized(cursosMemoria) { cursosMemoria.add(cursoGuardado) }
-                return Result.success(cursoGuardado.id.toLong())
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
         }
 
         val cantidadEnAnio = synchronized(cursosMemoria) {
@@ -59,41 +75,36 @@ class CursoRepository(
             )
         }
 
+        try {
+            val response = apiService.registrarCurso(curso.copy(id = 0).toDto())
+            if (response.isSuccessful && response.body() != null) {
+                val cursoGuardado = response.body()!!.toDomain()
+                synchronized(cursosMemoria) {
+                    val idx = cursosMemoria.indexOfFirst { it.id == cursoGuardado.id }
+                    if (idx != -1) cursosMemoria[idx] = cursoGuardado else cursosMemoria.add(cursoGuardado)
+                }
+                emitirCambio()
+                return Result.success(cursoGuardado.id.toLong())
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+        }
+
         synchronized(cursosMemoria) {
             val nuevoId = (cursosMemoria.maxOfOrNull { it.id } ?: 0) + 1
             val cursoGuardado = curso.copy(id = nuevoId)
             cursosMemoria.add(cursoGuardado)
+            emitirCambio()
             return Result.success(nuevoId.toLong())
         }
     }
 
-    fun obtenerTodosLosCursos(): Flow<List<Curso>> = flow {
-        try {
-            val response = apiService.obtenerCursos()
-            if (response.isSuccessful && response.body() != null) {
-                val lista = response.body()!!.map { it.toDomain() }
-                synchronized(cursosMemoria) {
-                    cursosMemoria.clear()
-                    cursosMemoria.addAll(lista)
-                }
-                emit(lista)
-                return@flow
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-        }
-        emit(synchronized(cursosMemoria) { cursosMemoria.toList() })
+    fun obtenerTodosLosCursos(): Flow<List<Curso>> = _cursosFlow.asStateFlow().onStart {
+        refrescarCursosDesdeServidor()
     }
 
     suspend fun obtenerCursosPorAnio(anio: Int): List<Curso> {
-        try {
-            val response = apiService.obtenerCursosPorAnio(anio)
-            if (response.isSuccessful && response.body() != null) {
-                return response.body()!!.map { it.toDomain() }
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-        }
+        refrescarCursosDesdeServidor()
         return synchronized(cursosMemoria) { cursosMemoria.filter { it.anio == anio } }
     }
 
